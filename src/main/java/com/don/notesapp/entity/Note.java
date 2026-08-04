@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "notes")
@@ -25,7 +26,11 @@ public class Note {
     private String content;
 
     @CreationTimestamp
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -64,6 +69,14 @@ public class Note {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     public User getUser() {

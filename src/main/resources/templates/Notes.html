@@ -139,7 +139,9 @@
         <div th:each="note : ${notes}" class="note-card">
             <div class="note-title" th:text="${note.title}"></div>
             <div class="note-content" th:text="${note.content}"></div>
-            <div class="note-date" th:text="${#temporals.format(note.createdAt, 'yyyy-MM-dd · HH:mm')}"></div>
+            <div class="note-date">
+                Last updated: <span th:text="${#temporals.format(note.updatedAt != null ? note.updatedAt : note.createdAt, 'yyyy-MM-dd · HH:mm')}"></span>
+            </div>
             <div class="note-actions">
                 <a th:href="@{/my-notes/edit/{id}(id=${note.id})}" class="btn-edit">✏️ Edit</a>
                 <form th:action="@{/my-notes/delete/{id}(id=${note.id})}" method="post" style="flex:1; margin:0;">
