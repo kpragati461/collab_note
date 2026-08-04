@@ -85,6 +85,11 @@
                 <span th:if="${#fields.hasErrors('content')}" th:errors="*{content}" class="error-text"></span>
             </div>
 
+            <div class="field">
+                <label>Tags</label>
+                <input type="text" th:field="*{tagsInput}" placeholder="e.g. work, ideas, spring boot"/>
+            </div>
+
             <button type="submit" class="btn-main">Save Note →</button>
         </form>
     </div>

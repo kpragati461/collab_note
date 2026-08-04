@@ -54,6 +54,8 @@
         .note-title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; color: #1a1a2e; margin-bottom: 8px; }
         .note-content { font-size: 13px; color: #555; line-height: 1.65; margin-bottom: 10px; word-break: break-word; }
         .note-date { font-size: 11px; color: #aaa; margin-bottom: 12px; }
+        .note-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: -3px 0 12px; }
+        .tag { background: rgba(108,62,244,0.1); color: #6C3EF4; border-radius: 999px; font-size: 11px; padding: 3px 8px; }
         .note-actions { display: flex; gap: 8px; }
 
         .btn-edit {
@@ -139,11 +141,15 @@
         <div th:each="note : ${notes}" class="note-card">
             <div class="note-title" th:text="${note.title}"></div>
             <div class="note-content" th:text="${note.content}"></div>
+            <div class="note-tags" th:if="${!note.tags.isEmpty()}">
+                <span class="tag" th:each="tag : ${note.tags}" th:text="${'#' + tag}"></span>
+            </div>
             <div class="note-date">
                 Last updated: <span th:text="${#temporals.format(note.updatedAt != null ? note.updatedAt : note.createdAt, 'yyyy-MM-dd · HH:mm')}"></span>
             </div>
             <div class="note-actions">
                 <a th:href="@{/my-notes/edit/{id}(id=${note.id})}" class="btn-edit">✏️ Edit</a>
+                <a th:href="@{/my-notes/{id}/history(id=${note.id})}" class="btn-edit">History</a>
                 <form th:action="@{/my-notes/delete/{id}(id=${note.id})}" method="post" style="flex:1; margin:0;">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                     <button type="submit" class="btn-delete" onclick="return confirm('Delete this note?')">🗑 Delete</button>

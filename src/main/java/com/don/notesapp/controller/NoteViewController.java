@@ -1,9 +1,7 @@
 package com.don.notesapp.controller;
 
 import com.don.notesapp.entity.Note;
-import com.don.notesapp.entity.User;
 import com.don.notesapp.service.NoteService;
-import com.don.notesapp.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -18,11 +16,8 @@ import java.util.List;
 public class NoteViewController {
 
     private final NoteService noteService;
-    private final UserService userService;
-
-    public NoteViewController(NoteService noteService, UserService userService) {
+    public NoteViewController(NoteService noteService) {
         this.noteService = noteService;
-        this.userService = userService;
     }
 
     // Show all notes for logged-in user
@@ -63,10 +58,6 @@ public String showNotes(
             return "create-note";
         }
 
-        String username = authentication.getName();
-        User user = userService.findByUsername(username);
-        note.setUser(user);
-
         noteService.createNote(note);
         return "redirect:/my-notes";
     }
@@ -88,13 +79,11 @@ public String showNotes(
     ) {
         // If validation fails, go back to form and show errors
         if (result.hasErrors()) {
+            note.setId(id);
             return "edit-note";
         }
 
-        Note existing = noteService.getNoteById(id);
-        existing.setTitle(note.getTitle());
-        existing.setContent(note.getContent());
-        noteService.updateNote(id, existing);
+        noteService.updateNote(id, note);
         return "redirect:/my-notes";
     }
 
@@ -103,5 +92,19 @@ public String showNotes(
     public String deleteNote(@PathVariable Long id) {
         noteService.deleteNote(id);
         return "redirect:/my-notes";
+    }
+
+    @GetMapping("/{id}/history")
+    public String showHistory(@PathVariable Long id, Model model) {
+        Note note = noteService.getNoteById(id);
+        model.addAttribute("note", note);
+        model.addAttribute("versions", noteService.getVersionHistory(id));
+        return "note-history";
+    }
+
+    @PostMapping("/{noteId}/history/{versionId}/restore")
+    public String restoreVersion(@PathVariable Long noteId, @PathVariable Long versionId) {
+        noteService.restoreVersion(noteId, versionId);
+        return "redirect:/my-notes/edit/" + noteId;
     }
 }

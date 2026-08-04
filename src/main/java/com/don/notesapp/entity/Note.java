@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -31,6 +34,11 @@ public class Note {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @ElementCollection
+    @CollectionTable(name = "note_tags", joinColumns = @JoinColumn(name = "note_id"))
+    @Column(name = "tag", length = 50)
+    private Set<String> tags = new LinkedHashSet<>();
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -77,6 +85,32 @@ public class Note {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Set<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(Set<String> tags) {
+        this.tags = tags == null ? new LinkedHashSet<>() : new LinkedHashSet<>(tags);
+    }
+
+    @Transient
+    public String getTagsInput() {
+        return String.join(", ", tags);
+    }
+
+    public void setTagsInput(String tagsInput) {
+        if (tagsInput == null || tagsInput.isBlank()) {
+            this.tags = new LinkedHashSet<>();
+            return;
+        }
+        this.tags = java.util.Arrays.stream(tagsInput.split(","))
+                .map(String::trim)
+                .filter(tag -> !tag.isBlank())
+                .map(String::toLowerCase)
+                .map(tag -> tag.length() > 50 ? tag.substring(0, 50) : tag)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public User getUser() {
