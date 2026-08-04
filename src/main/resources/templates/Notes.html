@@ -1,163 +1,49 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>My Notes – NotesApp</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #F0EBFF; font-family: 'Inter', sans-serif; min-height: 100vh; }
-
-        .navbar {
-            background: linear-gradient(135deg, #6C3EF4, #FF6B6B);
-            padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between;
-            position: sticky; top: 0; z-index: 100;
-        }
-        .nav-brand { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 20px; color: #fff; }
-        .nav-right { display: flex; align-items: center; gap: 10px; }
-        .btn-new {
-            background: #FFD93D; color: #5A3E00;
-            font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14px;
-            padding: 8px 18px; border-radius: 20px; border: none; cursor: pointer;
-            text-decoration: none; transition: opacity 0.2s;
-        }
-        .btn-new:hover { opacity: 0.85; }
-        .btn-logout {
-            background: rgba(255,255,255,0.2); color: #fff;
-            font-family: 'Inter', sans-serif; font-weight: 500; font-size: 13px;
-            padding: 8px 16px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.35); cursor: pointer; transition: opacity 0.2s;
-        }
-        .btn-logout:hover { opacity: 0.85; }
-
-        .content { padding: 2rem; max-width: 1100px; margin: 0 auto; }
-        .page-title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 22px; color: #1a1a2e; margin-bottom: 1.5rem; }
-
-        .empty-state { text-align: center; padding: 4rem 2rem; color: #aaa; }
-        .empty-state p { font-size: 15px; margin-bottom: 1rem; }
-
-        .masonry { columns: 3; column-gap: 16px; }
-        @media (max-width: 768px) { .masonry { columns: 2; } }
-        @media (max-width: 480px) { .masonry { columns: 1; } }
-
-        .note-card {
-            break-inside: avoid; margin-bottom: 16px;
-            border-radius: 18px; padding: 1.1rem 1.2rem;
-            transition: transform 0.2s;
-        }
-        .note-card:hover { transform: translateY(-3px); }
-        .note-card:nth-child(5n+1) { background: #fff0f7; }
-        .note-card:nth-child(5n+2) { background: #f0ebff; }
-        .note-card:nth-child(5n+3) { background: #fff8e1; }
-        .note-card:nth-child(5n+4) { background: #e8f5e9; }
-        .note-card:nth-child(5n+5) { background: #e3f2fd; }
-
-        .note-title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; color: #1a1a2e; margin-bottom: 8px; }
-        .note-content { font-size: 13px; color: #555; line-height: 1.65; margin-bottom: 10px; word-break: break-word; }
-        .note-date { font-size: 11px; color: #aaa; margin-bottom: 12px; }
-        .note-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: -3px 0 12px; }
-        .tag { background: rgba(108,62,244,0.1); color: #6C3EF4; border-radius: 999px; font-size: 11px; padding: 3px 8px; }
-        .note-actions { display: flex; gap: 8px; }
-
-        .btn-edit {
-            flex: 1; padding: 7px; border-radius: 8px; border: none; cursor: pointer;
-            background: rgba(108,62,244,0.1); color: #6C3EF4;
-            font-family: 'Inter', sans-serif; font-weight: 500; font-size: 12px;
-            text-decoration: none; text-align: center; transition: background 0.2s;
-        }
-        .btn-edit:hover { background: rgba(108,62,244,0.2); }
-        .btn-delete {
-            flex: 1; padding: 7px; border-radius: 8px; border: none; cursor: pointer;
-            background: rgba(255,107,107,0.1); color: #FF6B6B;
-            font-family: 'Inter', sans-serif; font-weight: 500; font-size: 12px;
-            transition: background 0.2s;
-        }
-        .btn-delete:hover { background: rgba(255,107,107,0.2); }
-        .search-bar {
-    display: flex; gap: 10px; margin-bottom: 1.5rem;
-}
-.search-bar input {
-    flex: 1; padding: 11px 18px;
-    border: 1.5px solid #e8e0ff; border-radius: 20px;
-    font-family: 'Inter', sans-serif; font-size: 14px; color: #1a1a2e;
-    background: #fff; outline: none; transition: all 0.2s;
-}
-.search-bar input:focus { border-color: #6C3EF4; }
-.btn-search {
-    padding: 11px 22px;
-    background: linear-gradient(135deg, #6C3EF4, #FF6B6B);
-    color: #fff; border: none; border-radius: 20px;
-    font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px;
-    cursor: pointer; transition: opacity 0.2s;
-}
-.btn-search:hover { opacity: 0.9; }
-.btn-clear {
-    padding: 11px 18px;
-    background: #fff; color: #6C3EF4;
-    border: 1.5px solid #e8e0ff; border-radius: 20px;
-    font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px;
-    cursor: pointer; text-decoration: none; transition: all 0.2s;
-}
-.btn-clear:hover { border-color: #6C3EF4; }
-.search-result-msg { font-size: 13px; color: #888; margin-bottom: 1rem; }
-    </style>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>My Notes · CollabNote</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/css/collabnote.css"/>
+    <script src="/js/theme.js"></script>
 </head>
 <body>
+<div class="app-shell">
+    <main class="main-content">
+        <header class="page-top">
+            <div><p class="eyebrow">Your private space</p><h1>Welcome!</h1><p class="page-subtitle">Capture your thoughts, organize your mind.</p></div>
+            <div style="display:flex; gap:14px; align-items:center;">
+                <div class="theme-toggle" aria-label="Choose color theme"><button type="button" data-theme-choice="light" onclick="setTheme('light')" aria-label="Light mode">☼</button><button type="button" data-theme-choice="dark" onclick="setTheme('dark')" aria-label="Dark mode">☾</button></div>
+                <a class="button" href="/my-notes/create">＋ New note</a>
+            </div>
+        </header>
 
-<nav class="navbar">
-    <div class="nav-brand">📝 NotesApp</div>
-    <div class="nav-right">
-        <a href="/my-notes/create" class="btn-new">+ New Note</a>
-        <form action="/logout" method="post" style="margin:0;">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <button type="submit" class="btn-logout">Logout</button>
+        <form action="/my-notes" method="get" class="search-row">
+            <label class="search-field"><input type="text" name="keyword" th:value="${keyword}" placeholder="Search your notes" aria-label="Search notes"/></label>
+            <button class="button" type="submit">Search</button>
+            <a class="button button-secondary" href="/my-notes">Clear</a>
         </form>
-    </div>
-</nav>
+        <div class="tag-filters"><a class="tag-filter active" href="/my-notes">All notes</a><span class="tag-filter">⌑ work</span><span class="tag-filter">⌑ ideas</span><span class="tag-filter">⌑ reading</span></div>
 
-<div class="content">
-    <p class="page-title">My Notes ✨</p>
-    <!-- Search Bar -->
-<form action="/my-notes" method="get" class="search-bar">
-    <input type="text"
-           name="keyword"
-           th:value="${keyword}"
-           placeholder="Search notes by title..."/>
-    <button type="submit" class="btn-search">Search</button>
-    <a href="/my-notes" class="btn-clear">Clear</a>
-</form>
-
-<!-- Search result message -->
-<p th:if="${keyword != null and !keyword.isEmpty()}"
-   class="search-result-msg">
-    Showing results for: <strong th:text="${keyword}"></strong>
-</p>
-
-    <div th:if="${notes.isEmpty()}" class="empty-state">
-        <p>No notes yet — create your first one!</p>
-        <a href="/my-notes/create" class="btn-new">+ New Note</a>
-    </div>
-
-    <div th:if="${!notes.isEmpty()}" class="masonry">
-        <div th:each="note : ${notes}" class="note-card">
-            <div class="note-title" th:text="${note.title}"></div>
-            <div class="note-content" th:text="${note.content}"></div>
-            <div class="note-tags" th:if="${!note.tags.isEmpty()}">
-                <span class="tag" th:each="tag : ${note.tags}" th:text="${'#' + tag}"></span>
-            </div>
-            <div class="note-date">
-                Last updated: <span th:text="${#temporals.format(note.updatedAt != null ? note.updatedAt : note.createdAt, 'yyyy-MM-dd · HH:mm')}"></span>
-            </div>
-            <div class="note-actions">
-                <a th:href="@{/my-notes/edit/{id}(id=${note.id})}" class="btn-edit">✏️ Edit</a>
-                <a th:href="@{/my-notes/{id}/history(id=${note.id})}" class="btn-edit">History</a>
-                <form th:action="@{/my-notes/delete/{id}(id=${note.id})}" method="post" style="flex:1; margin:0;">
-                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                    <button type="submit" class="btn-delete" onclick="return confirm('Delete this note?')">🗑 Delete</button>
-                </form>
-            </div>
-        </div>
-    </div>
+        <p th:if="${keyword != null and !keyword.isEmpty()}" class="page-subtitle" style="margin-bottom:18px;" th:text="${'Results for “' + keyword + '”'}"></p>
+        <section th:if="${notes.isEmpty()}" class="empty-state"><p>You have no notes yet.</p><a class="button" href="/my-notes/create">Write your first note</a></section>
+        <section th:if="${!notes.isEmpty()}" class="note-grid">
+            <article th:each="note : ${notes}" class="note-card">
+                <a class="note-card-link" th:href="@{/my-notes/{id}(id=${note.id})}">
+                    <h2 class="note-title" th:text="${note.title}"></h2>
+                    <p class="note-content" th:text="${note.content}"></p>
+                    <div class="note-tags" th:if="${!note.tags.isEmpty()}"><span class="tag" th:each="tag : ${note.tags}" th:text="${'#' + tag}"></span></div>
+                </a>
+                <footer class="note-card-footer">
+                    <span th:text="${#temporals.format(note.updatedAt != null ? note.updatedAt : note.createdAt, 'MMM d, yyyy · HH:mm')}"></span>
+                    <span class="note-actions"><a class="icon-link" th:href="@{/my-notes/edit/{id}(id=${note.id})}" title="Edit note">✎</a><a class="icon-link" th:href="@{/my-notes/{id}/history(id=${note.id})}" title="Version history">◷</a><form th:action="@{/my-notes/delete/{id}(id=${note.id})}" method="post"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/><button class="icon-button" type="submit" onclick="return confirm('Delete this note?')" title="Delete note">×</button></form></span>
+                </footer>
+            </article>
+        </section>
+    </main>
 </div>
-
 </body>
 </html>

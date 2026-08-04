@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${note.title} + ' · CollabNote'"></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/css/collabnote.css"/>
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+<div class="app-shell">
+    <main class="main-content">
+        <header class="page-top">
+            <div>
+                <p class="eyebrow">Note</p>
+                <h1 th:text="${note.title}"></h1>
+                <p class="page-subtitle" th:if="${!note.tags.isEmpty()}">
+                    <span th:each="tag : ${note.tags}" th:text="${'#' + tag + ' '}" ></span>
+                </p>
+            </div>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <a class="button button-secondary" href="/my-notes">Back to notes</a>
+            </div>
+        </header>
+
+        <section class="form-wrap">
+            <div class="form-card">
+                <p class="page-subtitle" th:text="${#temporals.format(note.updatedAt != null ? note.updatedAt : note.createdAt, 'MMM d, yyyy · HH:mm')}"></p>
+                <div class="note-content" style="margin-top: 20px; white-space: pre-wrap; font-size: 16px; line-height: 1.8;" th:text="${note.content}"></div>
+                <div class="form-actions" style="justify-content:flex-start;">
+                    <a class="button" th:href="@{/my-notes/edit/{id}(id=${note.id})}">Update</a>
+                    <a class="button button-secondary" th:href="@{/my-notes/{id}/history(id=${note.id})}">History</a>
+                    <form th:action="@{/my-notes/delete/{id}(id=${note.id})}" method="post" style="display:inline;">
+                        <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button class="button button-danger" type="submit" onclick="return confirm('Delete this note?')">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

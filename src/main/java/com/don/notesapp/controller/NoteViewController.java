@@ -62,6 +62,13 @@ public String showNotes(
         return "redirect:/my-notes";
     }
 
+    @GetMapping("/{id}")
+    public String showNoteDetail(@PathVariable Long id, Model model) {
+        Note note = noteService.getNoteById(id);
+        model.addAttribute("note", note);
+        return "note-detail";
+    }
+
     // Show edit note form
     @GetMapping("/edit/{id}")
     public String showEditForm(@PathVariable Long id, Model model) {
