@@ -1,18 +1,23 @@
 package com.don.notesapp.service;
 
 import com.don.notesapp.entity.Note;
-import com.don.notesapp.entity.User;
 import com.don.notesapp.entity.NoteVersion;
+import com.don.notesapp.entity.Tag;
+import com.don.notesapp.entity.User;
 import com.don.notesapp.exception.NoteNotFoundException;
 import com.don.notesapp.repository.NoteRepository;
 import com.don.notesapp.repository.NoteVersionRepository;
+import com.don.notesapp.repository.TagRepository;
 import com.don.notesapp.repository.UserRepository;
+
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -21,85 +26,321 @@ public class NoteService {
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
     private final NoteVersionRepository noteVersionRepository;
+    private final TagRepository tagRepository;
 
-    public NoteService(NoteRepository noteRepository,
-                       UserRepository userRepository,
-                       NoteVersionRepository noteVersionRepository) {
+    public NoteService(
+            NoteRepository noteRepository,
+            UserRepository userRepository,
+            NoteVersionRepository noteVersionRepository,
+            TagRepository tagRepository
+    ) {
         this.noteRepository = noteRepository;
         this.userRepository = userRepository;
         this.noteVersionRepository = noteVersionRepository;
+        this.tagRepository = tagRepository;
     }
 
+    /*
+     * CREATE NOTE
+     */
     @Transactional
     public Note createNote(Note note) {
-        note.setUser(getCurrentUser());
+
+        User currentUser = getCurrentUser();
+
+        note.setOwner(currentUser);
+
+        applyTags(note);
+
         Note savedNote = noteRepository.save(note);
+
         saveVersion(savedNote);
+
         return savedNote;
     }
 
-    // ← now sorted by newest first
+    /*
+     * GET ALL NOTES OWNED BY CURRENT USER
+     */
+    @Transactional(readOnly = true)
     public List<Note> getAllNotes() {
-        User user = getCurrentUser();
-        return noteRepository.findByUser(user,
-                Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        User currentUser = getCurrentUser();
+
+        return noteRepository.findByOwner(
+                currentUser,
+                Sort.by(
+                        Sort.Direction.DESC,
+                        "createdAt"
+                )
+        );
     }
 
-    // ← new search method
+    /*
+     * SEARCH NOTES OWNED BY CURRENT USER
+     */
+    @Transactional(readOnly = true)
     public List<Note> searchNotes(String keyword) {
-        User user = getCurrentUser();
-        return noteRepository.findByUserAndTitleContainingIgnoreCase(
-                user, keyword, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        User currentUser = getCurrentUser();
+
+        return noteRepository.findByOwnerAndTitleContainingIgnoreCase(
+                currentUser,
+                keyword,
+                Sort.by(
+                        Sort.Direction.DESC,
+                        "createdAt"
+                )
+        );
     }
 
+    /*
+     * GET ONE NOTE
+     *
+     * Only the owner can currently access it.
+     *
+     * Later this will become:
+     * owner OR collaborator.
+     */
+    @Transactional(readOnly = true)
     public Note getNoteById(Long id) {
-        return noteRepository.findByIdAndUser(id, getCurrentUser())
-                .orElseThrow(() -> new NoteNotFoundException(id));
+
+        return noteRepository.findByIdAndOwner(
+                        id,
+                        getCurrentUser()
+                )
+                .orElseThrow(
+                        () -> new NoteNotFoundException(id)
+                );
     }
 
+    /*
+     * UPDATE NOTE
+     */
     @Transactional
-    public Note updateNote(Long id, Note updatedNote) {
+    public Note updateNote(
+            Long id,
+            Note updatedNote
+    ) {
+
         Note existingNote = getNoteById(id);
-        existingNote.setTitle(updatedNote.getTitle());
-        existingNote.setContent(updatedNote.getContent());
-        existingNote.setTags(updatedNote.getTags());
+
+        existingNote.setTitle(
+                updatedNote.getTitle()
+        );
+
+        existingNote.setContent(
+                updatedNote.getContent()
+        );
+
+        /*
+         * Convert the tagsInput from the form
+         * into real Tag entities.
+         */
+        if (updatedNote.getTagsInput() != null) {
+
+            existingNote.setTags(
+                    resolveTags(
+                            updatedNote.getTagsInput()
+                    )
+            );
+        }
+
         Note savedNote = noteRepository.save(existingNote);
+
         saveVersion(savedNote);
+
         return savedNote;
     }
 
+    /*
+     * DELETE NOTE
+     */
     @Transactional
     public void deleteNote(Long id) {
+
         Note note = getNoteById(id);
+
         noteVersionRepository.deleteByNote(note);
+
         noteRepository.delete(note);
     }
 
-    public List<NoteVersion> getVersionHistory(Long noteId) {
-        return noteVersionRepository.findByNoteOrderByVersionNumberDesc(getNoteById(noteId));
+    /*
+     * VERSION HISTORY
+     */
+    @Transactional(readOnly = true)
+    public List<NoteVersion> getVersionHistory(
+            Long noteId
+    ) {
+
+        Note note = getNoteById(noteId);
+
+        return noteVersionRepository
+                .findByNoteOrderByVersionNumberDesc(note);
     }
 
+    /*
+     * RESTORE VERSION
+     */
     @Transactional
-    public void restoreVersion(Long noteId, Long versionId) {
+    public void restoreVersion(
+            Long noteId,
+            Long versionId
+    ) {
+
         Note note = getNoteById(noteId);
-        NoteVersion version = noteVersionRepository.findByIdAndNote(versionId, note)
-                .orElseThrow(() -> new NoteNotFoundException(versionId));
-        note.setTitle(version.getTitle());
-        note.setContent(version.getContent());
-        note.setTagsInput(version.getTagsText());
+
+        NoteVersion version =
+                noteVersionRepository
+                        .findByIdAndNote(
+                                versionId,
+                                note
+                        )
+                        .orElseThrow(
+                                () -> new NoteNotFoundException(
+                                        versionId
+                                )
+                        );
+
+        note.setTitle(
+                version.getTitle()
+        );
+
+        note.setContent(
+                version.getContent()
+        );
+
+        /*
+         * Restore the tags from the snapshot.
+         */
+        note.setTags(
+                resolveTags(
+                        version.getTagsText()
+                )
+        );
+
         noteRepository.save(note);
+
+        /*
+         * Restoring is itself a new version.
+         */
         saveVersion(note);
     }
 
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return userRepository.findByUsername(authentication.getName());
+    /*
+     * CREATE A VERSION SNAPSHOT
+     */
+    private void saveVersion(Note note) {
+
+        int nextVersion =
+                noteVersionRepository
+                        .findTopByNoteOrderByVersionNumberDesc(note)
+                        .map(
+                                version ->
+                                        version.getVersionNumber() + 1
+                        )
+                        .orElse(1);
+
+        NoteVersion version =
+                new NoteVersion(
+                        note,
+                        nextVersion,
+                        getCurrentUser()
+                );
+
+        noteVersionRepository.save(version);
     }
 
-    private void saveVersion(Note note) {
-        int nextVersion = noteVersionRepository.findTopByNoteOrderByVersionNumberDesc(note)
-                .map(version -> version.getVersionNumber() + 1)
-                .orElse(1);
-        noteVersionRepository.save(new NoteVersion(note, nextVersion));
+    /*
+     * Convert comma-separated tag input
+     * into Tag entities.
+     */
+    private void applyTags(Note note) {
+
+        String tagsInput = note.getTagsInput();
+
+        if (tagsInput == null || tagsInput.isBlank()) {
+
+            note.setTags(new ArrayList<>());
+
+            return;
+        }
+
+        note.setTags(
+                resolveTags(tagsInput)
+        );
+    }
+
+    /*
+     * Find existing tags or create new ones.
+     */
+    private List<Tag> resolveTags(
+            String tagsInput
+    ) {
+
+        if (tagsInput == null || tagsInput.isBlank()) {
+
+            return new ArrayList<>();
+        }
+
+        return Arrays.stream(
+                        tagsInput.split(",")
+                )
+                .map(String::trim)
+                .filter(tag -> !tag.isBlank())
+                .map(String::toLowerCase)
+                .map(
+                        tag ->
+                                tag.length() > 50
+                                        ? tag.substring(0, 50)
+                                        : tag
+                )
+                .distinct()
+                .map(
+                        tagName ->
+                                tagRepository
+                                        .findByNameIgnoreCase(tagName)
+                                        .orElseGet(
+                                                () ->
+                                                        tagRepository.save(
+                                                                new Tag(tagName)
+                                                        )
+                                        )
+                )
+                .toList();
+    }
+
+    /*
+     * CURRENT LOGGED-IN USER
+     */
+    private User getCurrentUser() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()) {
+
+            throw new IllegalStateException(
+                    "No authenticated user found"
+            );
+        }
+
+        User user =
+                userRepository.findByUsername(
+                        authentication.getName()
+                );
+
+        if (user == null) {
+
+            throw new IllegalStateException(
+                    "Authenticated user does not exist"
+            );
+        }
+
+        return user;
     }
 }

@@ -10,9 +10,16 @@ import java.util.Optional;
 
 public interface NoteRepository extends JpaRepository<Note, Long> {
 
-    List<Note> findByUser(User user, Sort sort);
+    List<Note> findByOwner(User owner, Sort sort);
 
-    List<Note> findByUserAndTitleContainingIgnoreCase(User user, String keyword, Sort sort);
+    List<Note> findByOwnerAndTitleContainingIgnoreCase(
+            User owner,
+            String keyword,
+            Sort sort
+    );
 
-    Optional<Note> findByIdAndUser(Long id, User user);
+    Optional<Note> findByIdAndOwner(
+            Long id,
+            User owner
+    );
 }

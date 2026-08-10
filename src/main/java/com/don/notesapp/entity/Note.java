@@ -3,13 +3,12 @@ package com.don.notesapp.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import java.time.LocalDateTime;
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "notes")
@@ -20,11 +19,19 @@ public class Note {
     private Long id;
 
     @NotBlank(message = "Title cannot be empty")
-    @Size(min = 1, max = 100, message = "Title must be between 1 and 100 characters")
+    @Size(
+            min = 1,
+            max = 100,
+            message = "Title must be between 1 and 100 characters"
+    )
     private String title;
 
     @NotBlank(message = "Content cannot be empty")
-    @Size(min = 1, max = 5000, message = "Content must be between 1 and 5000 characters")
+    @Size(
+            min = 1,
+            max = 5000,
+            message = "Content must be between 1 and 5000 characters"
+    )
     @Column(columnDefinition = "TEXT")
     private String content;
 
@@ -35,14 +42,53 @@ public class Note {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @ElementCollection
-    @CollectionTable(name = "note_tags", joinColumns = @JoinColumn(name = "note_id"))
-    @Column(name = "tag", length = 50)
-    private Set<String> tags = new LinkedHashSet<>();
+    /*
+     * Owner of the note.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    /*
+     * Users who have access to this note.
+     */
+    @OneToMany(
+            mappedBy = "note",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<NoteCollaborator> collaborators = new ArrayList<>();
+
+    /*
+     * Version history.
+     */
+    @OneToMany(
+            mappedBy = "note",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    @OrderBy("versionNumber DESC")
+    private List<NoteVersion> versions = new ArrayList<>();
+
+    /*
+     * Tags attached to this note.
+     */
+    @ManyToMany
+    @JoinTable(
+            name = "note_tags",
+            joinColumns = @JoinColumn(name = "note_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private List<Tag> tags = new ArrayList<>();
+
+    /*
+     * Used by Thymeleaf forms.
+     *
+     * This is NOT stored in the database.
+     * NoteService converts this text into Tag entities.
+     */
+    @Transient
+    private String tagsInput;
 
     public Note() {
     }
@@ -87,37 +133,58 @@ public class Note {
         this.updatedAt = updatedAt;
     }
 
-    public Set<String> getTags() {
+    public User getOwner() {
+        return owner;
+    }
+
+    public void setOwner(User owner) {
+        this.owner = owner;
+    }
+
+    public List<NoteCollaborator> getCollaborators() {
+        return collaborators;
+    }
+
+    public void setCollaborators(List<NoteCollaborator> collaborators) {
+        this.collaborators =
+                collaborators == null ? new ArrayList<>() : collaborators;
+    }
+
+    public List<NoteVersion> getVersions() {
+        return versions;
+    }
+
+    public void setVersions(List<NoteVersion> versions) {
+        this.versions =
+                versions == null ? new ArrayList<>() : versions;
+    }
+
+    public List<Tag> getTags() {
         return tags;
     }
 
-    public void setTags(Set<String> tags) {
-        this.tags = tags == null ? new LinkedHashSet<>() : new LinkedHashSet<>(tags);
+    public void setTags(List<Tag> tags) {
+        this.tags =
+                tags == null ? new ArrayList<>() : new ArrayList<>(tags);
     }
 
-    @Transient
     public String getTagsInput() {
-        return String.join(", ", tags);
+
+        if (tagsInput != null) {
+            return tagsInput;
+        }
+
+        if (tags == null || tags.isEmpty()) {
+            return "";
+        }
+
+        return tags.stream()
+                .map(Tag::getName)
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
     }
 
     public void setTagsInput(String tagsInput) {
-        if (tagsInput == null || tagsInput.isBlank()) {
-            this.tags = new LinkedHashSet<>();
-            return;
-        }
-        this.tags = java.util.Arrays.stream(tagsInput.split(","))
-                .map(String::trim)
-                .filter(tag -> !tag.isBlank())
-                .map(String::toLowerCase)
-                .map(tag -> tag.length() > 50 ? tag.substring(0, 50) : tag)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
+        this.tagsInput = tagsInput;
     }
 }

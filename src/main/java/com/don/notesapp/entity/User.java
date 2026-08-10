@@ -1,6 +1,10 @@
 package com.don.notesapp.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -11,14 +15,47 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
     private String username;
 
+    @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false)
     private String password;
 
-    @OneToMany(mappedBy = "user")
-    private List<Note> notes;
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    /*
+     * Notes owned by this user.
+     */
+    @OneToMany(
+            mappedBy = "owner",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<Note> ownedNotes = new ArrayList<>();
+
+    /*
+     * Notes shared with this user.
+     */
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<NoteCollaborator> collaborations = new ArrayList<>();
+
+    /*
+     * Notifications for this user.
+     */
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<Notification> notifications = new ArrayList<>();
 
     public User() {
     }
@@ -55,11 +92,35 @@ public class User {
         this.password = password;
     }
 
-    public List<Note> getNotes() {
-        return notes;
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 
-    public void setNotes(List<Note> notes) {
-        this.notes = notes;
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public List<Note> getOwnedNotes() {
+        return ownedNotes;
+    }
+
+    public void setOwnedNotes(List<Note> ownedNotes) {
+        this.ownedNotes = ownedNotes;
+    }
+
+    public List<NoteCollaborator> getCollaborations() {
+        return collaborations;
+    }
+
+    public void setCollaborations(List<NoteCollaborator> collaborations) {
+        this.collaborations = collaborations;
+    }
+
+    public List<Notification> getNotifications() {
+        return notifications;
+    }
+
+    public void setNotifications(List<Notification> notifications) {
+        this.notifications = notifications;
     }
 }
