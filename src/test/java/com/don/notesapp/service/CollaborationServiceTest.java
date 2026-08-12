@@ -16,8 +16,11 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -172,6 +175,93 @@ class CollaborationServiceTest {
 
         verify(collaboratorRepository, never()).findByNoteAndUser(any(), any());
         verify(collaboratorRepository, never()).save(any());
+    }
+
+    @Test
+    void ownerHasEveryPermissionWithoutCollaboratorLookup() {
+        CollaborationService service = new CollaborationService(
+                userRepository,
+                collaboratorRepository
+        );
+        Note note = noteWithOwner(1L);
+        User owner = note.getOwner();
+
+        assertTrue(service.canView(note, owner));
+        assertTrue(service.canEdit(note, owner));
+        assertTrue(service.canDelete(note, owner));
+        assertTrue(service.canShare(note, owner));
+        assertTrue(service.canChangeRole(note, owner));
+        verify(collaboratorRepository, never()).findByNoteAndUser(any(), any());
+    }
+
+    @Test
+    void editorCanViewAndEditButHasNoOwnerOnlyPermissions() {
+        CollaborationService service = new CollaborationService(
+                userRepository,
+                collaboratorRepository
+        );
+        Note note = noteWithOwner(1L);
+        User editor = user(2L);
+        stubCollaborator(note, editor, CollaboratorRole.EDITOR);
+
+        assertTrue(service.canView(note, editor));
+        assertTrue(service.canEdit(note, editor));
+        assertFalse(service.canDelete(note, editor));
+        assertFalse(service.canShare(note, editor));
+        assertFalse(service.canChangeRole(note, editor));
+        verify(collaboratorRepository, atLeastOnce())
+                .findByNoteAndUser(note, editor);
+    }
+
+    @Test
+    void viewerCanViewButCannotEditOrUseOwnerOnlyPermissions() {
+        CollaborationService service = new CollaborationService(
+                userRepository,
+                collaboratorRepository
+        );
+        Note note = noteWithOwner(1L);
+        User viewer = user(2L);
+        stubCollaborator(note, viewer, CollaboratorRole.VIEWER);
+
+        assertTrue(service.canView(note, viewer));
+        assertFalse(service.canEdit(note, viewer));
+        assertFalse(service.canDelete(note, viewer));
+        assertFalse(service.canShare(note, viewer));
+        assertFalse(service.canChangeRole(note, viewer));
+        verify(collaboratorRepository, atLeastOnce())
+                .findByNoteAndUser(note, viewer);
+    }
+
+    @Test
+    void nonCollaboratorHasNoPermissionsAndIsLookedUp() {
+        CollaborationService service = new CollaborationService(
+                userRepository,
+                collaboratorRepository
+        );
+        Note note = noteWithOwner(1L);
+        User nonCollaborator = user(2L);
+
+        when(collaboratorRepository.findByNoteAndUser(note, nonCollaborator))
+                .thenReturn(Optional.empty());
+
+        assertFalse(service.canView(note, nonCollaborator));
+        assertFalse(service.canEdit(note, nonCollaborator));
+        assertFalse(service.canDelete(note, nonCollaborator));
+        assertFalse(service.canShare(note, nonCollaborator));
+        assertFalse(service.canChangeRole(note, nonCollaborator));
+        verify(collaboratorRepository, atLeastOnce())
+                .findByNoteAndUser(note, nonCollaborator);
+    }
+
+    private void stubCollaborator(
+            Note note,
+            User user,
+            CollaboratorRole role
+    ) {
+        NoteCollaborator collaborator = new NoteCollaborator();
+        collaborator.setRole(role);
+        when(collaboratorRepository.findByNoteAndUser(note, user))
+                .thenReturn(Optional.of(collaborator));
     }
 
     private Note noteWithOwner(Long ownerId) {

@@ -27,17 +27,20 @@ public class NoteService {
     private final UserRepository userRepository;
     private final NoteVersionRepository noteVersionRepository;
     private final TagRepository tagRepository;
+    private final CollaborationService collaborationService;
 
     public NoteService(
             NoteRepository noteRepository,
             UserRepository userRepository,
             NoteVersionRepository noteVersionRepository,
-            TagRepository tagRepository
+            TagRepository tagRepository,
+            CollaborationService collaborationService
     ) {
         this.noteRepository = noteRepository;
         this.userRepository = userRepository;
         this.noteVersionRepository = noteVersionRepository;
         this.tagRepository = tagRepository;
+        this.collaborationService = collaborationService;
     }
 
     /*
@@ -105,13 +108,17 @@ public class NoteService {
     @Transactional(readOnly = true)
     public Note getNoteById(Long id) {
 
-        return noteRepository.findByIdAndOwner(
-                        id,
-                        getCurrentUser()
-                )
+        User currentUser = getCurrentUser();
+        Note note = noteRepository.findById(id)
                 .orElseThrow(
                         () -> new NoteNotFoundException(id)
                 );
+
+        if (!collaborationService.canView(note, currentUser)) {
+            throw new IllegalArgumentException("You do not have access to this note");
+        }
+
+        return note;
     }
 
     /*
@@ -124,6 +131,10 @@ public class NoteService {
     ) {
 
         Note existingNote = getNoteById(id);
+
+        if (!collaborationService.canEdit(existingNote, getCurrentUser())) {
+            throw new IllegalArgumentException("You do not have permission to edit this note");
+        }
 
         existingNote.setTitle(
                 updatedNote.getTitle()
@@ -160,6 +171,10 @@ public class NoteService {
     public void deleteNote(Long id) {
 
         Note note = getNoteById(id);
+
+        if (!collaborationService.canDelete(note, getCurrentUser())) {
+            throw new IllegalArgumentException("You do not have permission to delete this note");
+        }
 
         noteVersionRepository.deleteByNote(note);
 

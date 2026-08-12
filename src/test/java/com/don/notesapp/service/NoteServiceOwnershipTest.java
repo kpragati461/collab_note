@@ -48,6 +48,9 @@ class NoteServiceOwnershipTest {
     @Mock
     private TagRepository tagRepository;
 
+    @Mock
+    private CollaborationService collaborationService;
+
     private NoteService noteService;
 
     private User signedInUser;
@@ -59,7 +62,8 @@ class NoteServiceOwnershipTest {
                 noteRepository,
                 userRepository,
                 noteVersionRepository,
-                tagRepository
+                tagRepository,
+                collaborationService
         );
 
         signedInUser = new User();
@@ -116,14 +120,9 @@ class NoteServiceOwnershipTest {
                 tagRepository.findByNameIgnoreCase("spring")
         ).thenReturn(Optional.of(springTag));
 
-        when(
-                noteRepository.findByIdAndOwner(
-                        7L,
-                        signedInUser
-                )
-        ).thenReturn(
-                Optional.of(existingNote)
-        );
+        when(noteRepository.findById(7L)).thenReturn(Optional.of(existingNote));
+        when(collaborationService.canView(existingNote, signedInUser)).thenReturn(true);
+        when(collaborationService.canEdit(existingNote, signedInUser)).thenReturn(true);
 
         when(
                 noteRepository.save(existingNote)
@@ -158,12 +157,7 @@ class NoteServiceOwnershipTest {
                 existingNote.getTags()
         );
 
-        verify(
-                noteRepository
-        ).findByIdAndOwner(
-                7L,
-                signedInUser
-        );
+        verify(noteRepository).findById(7L);
 
         verify(
                 noteRepository
@@ -177,14 +171,7 @@ class NoteServiceOwnershipTest {
     @Test
     void refusesToUpdateANoteTheSignedInUserDoesNotOwn() {
 
-        when(
-                noteRepository.findByIdAndOwner(
-                        99L,
-                        signedInUser
-                )
-        ).thenReturn(
-                Optional.empty()
-        );
+        when(noteRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(
                 NoteNotFoundException.class,
@@ -212,14 +199,7 @@ class NoteServiceOwnershipTest {
     @Test
     void refusesToDeleteANoteTheSignedInUserDoesNotOwn() {
 
-        when(
-                noteRepository.findByIdAndOwner(
-                        99L,
-                        signedInUser
-                )
-        ).thenReturn(
-                Optional.empty()
-        );
+        when(noteRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(
                 NoteNotFoundException.class,
@@ -236,6 +216,51 @@ class NoteServiceOwnershipTest {
                 noteRepository,
                 never()
         ).delete(any());
+    }
+
+    @Test
+    void allowsAnEditorToViewASharedNote() {
+        Note sharedNote = note("Shared", "Visible to editors");
+
+        when(noteRepository.findById(15L)).thenReturn(Optional.of(sharedNote));
+        when(collaborationService.canView(sharedNote, signedInUser)).thenReturn(true);
+
+        Note foundNote = noteService.getNoteById(15L);
+
+        assertEquals(sharedNote, foundNote);
+        verify(collaborationService).canView(sharedNote, signedInUser);
+    }
+
+    @Test
+    void refusesToUpdateWhenTheUserCanViewButCannotEdit() {
+        Note sharedNote = note("Shared", "Viewer content");
+
+        when(noteRepository.findById(16L)).thenReturn(Optional.of(sharedNote));
+        when(collaborationService.canView(sharedNote, signedInUser)).thenReturn(true);
+        when(collaborationService.canEdit(sharedNote, signedInUser)).thenReturn(false);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> noteService.updateNote(16L, note("Changed", "Changed"))
+        );
+
+        verify(noteRepository, never()).save(sharedNote);
+    }
+
+    @Test
+    void refusesToDeleteWhenTheUserIsNotTheOwner() {
+        Note sharedNote = note("Shared", "Editor content");
+
+        when(noteRepository.findById(17L)).thenReturn(Optional.of(sharedNote));
+        when(collaborationService.canView(sharedNote, signedInUser)).thenReturn(true);
+        when(collaborationService.canDelete(sharedNote, signedInUser)).thenReturn(false);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> noteService.deleteNote(17L)
+        );
+
+        verify(noteRepository, never()).delete(sharedNote);
     }
 
     private Note note(

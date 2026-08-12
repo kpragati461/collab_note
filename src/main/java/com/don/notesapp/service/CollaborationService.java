@@ -34,6 +34,54 @@ public class CollaborationService {
         return noteCollaboratorRepository.findByNoteAndUser(note, user);
     }
 
+    public boolean canView(Note note, User user) {
+        if (isOwner(note, user)) {
+            return true;
+        }
+
+        return findCollaborator(note, user)
+                .map(collaborator -> collaborator.getRole() == CollaboratorRole.EDITOR
+                        || collaborator.getRole() == CollaboratorRole.VIEWER)
+                .orElse(false);
+    }
+
+    public boolean canEdit(Note note, User user) {
+        if (isOwner(note, user)) {
+            return true;
+        }
+
+        return findCollaborator(note, user)
+                .map(collaborator -> collaborator.getRole() == CollaboratorRole.EDITOR)
+                .orElse(false);
+    }
+
+    public boolean canDelete(Note note, User user) {
+        if (isOwner(note, user)) {
+            return true;
+        }
+
+        findCollaborator(note, user);
+        return false;
+    }
+
+    public boolean canShare(Note note, User user) {
+        if (isOwner(note, user)) {
+            return true;
+        }
+
+        findCollaborator(note, user);
+        return false;
+    }
+
+    public boolean canChangeRole(Note note, User user) {
+        if (isOwner(note, user)) {
+            return true;
+        }
+
+        findCollaborator(note, user);
+        return false;
+    }
+
     @Transactional(readOnly = true)
     public List<NoteCollaborator> getCollaborators(Note note) {
         return noteCollaboratorRepository.findByNote(note);
@@ -113,5 +161,13 @@ public class CollaborationService {
         collaborator.setRole(role);
 
         return noteCollaboratorRepository.save(collaborator);
+    }
+
+    private boolean isOwner(Note note, User user) {
+        return note != null
+                && note.getOwner() != null
+                && note.getOwner().getId() != null
+                && user != null
+                && note.getOwner().getId().equals(user.getId());
     }
 }

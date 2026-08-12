@@ -1,12 +1,16 @@
 package com.don.notesapp.controller;
 
 import com.don.notesapp.entity.Note;
+import com.don.notesapp.entity.User;
+import com.don.notesapp.service.CollaborationService;
 import com.don.notesapp.service.NoteService;
+import com.don.notesapp.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -15,9 +19,17 @@ import java.util.List;
 public class NoteViewController {
 
     private final NoteService noteService;
+    private final UserService userService;
+    private final CollaborationService collaborationService;
 
-    public NoteViewController(NoteService noteService) {
+    public NoteViewController(
+            NoteService noteService,
+            UserService userService,
+            CollaborationService collaborationService
+    ) {
         this.noteService = noteService;
+        this.userService = userService;
+        this.collaborationService = collaborationService;
     }
 
     // Show all notes for logged-in user
@@ -68,11 +80,13 @@ public class NoteViewController {
     @GetMapping("/{id}")
     public String showNoteDetail(
             @PathVariable Long id,
-            Model model) {
+            Model model,
+            Authentication authentication) {
 
         Note note = noteService.getNoteById(id);
 
         model.addAttribute("note", note);
+        addPermissions(model, note, authentication);
 
         return "note-detail";
     }
@@ -81,11 +95,14 @@ public class NoteViewController {
     @GetMapping("/edit/{id}")
     public String showEditForm(
             @PathVariable Long id,
-            Model model) {
+            Model model,
+            Authentication authentication) {
 
         Note note = noteService.getNoteById(id);
+        ensureCanEdit(note, authentication);
 
         model.addAttribute("note", note);
+        model.addAttribute("canEdit", true);
 
         return "edit-note";
     }
@@ -95,7 +112,10 @@ public class NoteViewController {
     public String updateNote(
             @PathVariable Long id,
             @Valid @ModelAttribute("note") Note note,
-            BindingResult result) {
+            BindingResult result,
+            Authentication authentication) {
+
+        ensureCanEdit(noteService.getNoteById(id), authentication);
 
         if (result.hasErrors()) {
             note.setId(id);
@@ -146,5 +166,34 @@ public class NoteViewController {
         );
 
         return "redirect:/my-notes/edit/" + noteId;
+    }
+
+    private void addPermissions(
+            Model model,
+            Note note,
+            Authentication authentication
+    ) {
+        User currentUser = getCurrentUser(authentication);
+
+        model.addAttribute("canView", collaborationService.canView(note, currentUser));
+        model.addAttribute("canEdit", collaborationService.canEdit(note, currentUser));
+        model.addAttribute("canDelete", collaborationService.canDelete(note, currentUser));
+        model.addAttribute("canShare", collaborationService.canShare(note, currentUser));
+        model.addAttribute(
+                "canChangeRole",
+                collaborationService.canChangeRole(note, currentUser)
+        );
+    }
+
+    private User getCurrentUser(Authentication authentication) {
+        return userService.findByUsername(authentication.getName());
+    }
+
+    private void ensureCanEdit(Note note, Authentication authentication) {
+        if (!collaborationService.canEdit(note, getCurrentUser(authentication))) {
+            throw new IllegalArgumentException(
+                    "You do not have permission to edit this note"
+            );
+        }
     }
 }
