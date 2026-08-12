@@ -40,6 +40,51 @@ public class CollaborationService {
     }
 
     @Transactional
+    public void removeCollaborator(
+            Note note,
+            User user
+    ) {
+        if (note.getOwner() != null
+                && note.getOwner().getId().equals(user.getId())) {
+            throw new IllegalArgumentException(
+                    "The note owner cannot be removed as a collaborator"
+            );
+        }
+
+        NoteCollaborator collaborator = noteCollaboratorRepository
+                .findByNoteAndUser(note, user)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "User is not a collaborator on this note"
+                ));
+
+        noteCollaboratorRepository.delete(collaborator);
+    }
+
+    @Transactional
+    public NoteCollaborator changeRole(
+            Note note,
+            User user,
+            CollaboratorRole newRole
+    ) {
+        if (note.getOwner() != null
+                && note.getOwner().getId().equals(user.getId())) {
+            throw new IllegalArgumentException(
+                    "The note owner's role cannot be changed"
+            );
+        }
+
+        NoteCollaborator collaborator = noteCollaboratorRepository
+                .findByNoteAndUser(note, user)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "User is not a collaborator on this note"
+                ));
+
+        collaborator.setRole(newRole);
+
+        return noteCollaboratorRepository.save(collaborator);
+    }
+
+    @Transactional
     public NoteCollaborator shareNote(
             Note note,
             String username,
