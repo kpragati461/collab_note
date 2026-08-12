@@ -35,51 +35,30 @@ public class CollaborationService {
     }
 
     public boolean canView(Note note, User user) {
-        if (isOwner(note, user)) {
-            return true;
-        }
-
+        if (isOwner(note, user)) return true;
         return findCollaborator(note, user)
-                .map(collaborator -> collaborator.getRole() == CollaboratorRole.EDITOR
-                        || collaborator.getRole() == CollaboratorRole.VIEWER)
+                .map(c -> c.getRole() == CollaboratorRole.EDITOR
+                        || c.getRole() == CollaboratorRole.VIEWER)
                 .orElse(false);
     }
 
     public boolean canEdit(Note note, User user) {
-        if (isOwner(note, user)) {
-            return true;
-        }
-
+        if (isOwner(note, user)) return true;
         return findCollaborator(note, user)
-                .map(collaborator -> collaborator.getRole() == CollaboratorRole.EDITOR)
+                .map(c -> c.getRole() == CollaboratorRole.EDITOR)
                 .orElse(false);
     }
 
     public boolean canDelete(Note note, User user) {
-        if (isOwner(note, user)) {
-            return true;
-        }
-
-        findCollaborator(note, user);
-        return false;
+        return isOwner(note, user);
     }
 
     public boolean canShare(Note note, User user) {
-        if (isOwner(note, user)) {
-            return true;
-        }
-
-        findCollaborator(note, user);
-        return false;
+        return isOwner(note, user);
     }
 
     public boolean canChangeRole(Note note, User user) {
-        if (isOwner(note, user)) {
-            return true;
-        }
-
-        findCollaborator(note, user);
-        return false;
+        return isOwner(note, user);
     }
 
     @Transactional(readOnly = true)
@@ -88,10 +67,7 @@ public class CollaborationService {
     }
 
     @Transactional
-    public void removeCollaborator(
-            Note note,
-            User user
-    ) {
+    public void removeCollaborator(Note note, User user) {
         if (note.getOwner() != null
                 && note.getOwner().getId().equals(user.getId())) {
             throw new IllegalArgumentException(
@@ -109,11 +85,7 @@ public class CollaborationService {
     }
 
     @Transactional
-    public NoteCollaborator changeRole(
-            Note note,
-            User user,
-            CollaboratorRole newRole
-    ) {
+    public NoteCollaborator changeRole(Note note, User user, CollaboratorRole newRole) {
         if (note.getOwner() != null
                 && note.getOwner().getId().equals(user.getId())) {
             throw new IllegalArgumentException(
@@ -128,16 +100,12 @@ public class CollaborationService {
                 ));
 
         collaborator.setRole(newRole);
-
         return noteCollaboratorRepository.save(collaborator);
     }
 
+    // ← original: takes username string
     @Transactional
-    public NoteCollaborator shareNote(
-            Note note,
-            String username,
-            CollaboratorRole role
-    ) {
+    public NoteCollaborator shareNote(Note note, String username, CollaboratorRole role) {
         User targetUser = findUserByUsername(username);
 
         if (targetUser == null) {
@@ -146,6 +114,12 @@ public class CollaborationService {
             );
         }
 
+        return shareNote(note, targetUser, role);
+    }
+
+    // ← new overload: takes User object directly (used by controller)
+    @Transactional
+    public NoteCollaborator shareNote(Note note, User targetUser, CollaboratorRole role) {
         if (note.getOwner() != null
                 && note.getOwner().getId().equals(targetUser.getId())) {
             throw new IllegalArgumentException(

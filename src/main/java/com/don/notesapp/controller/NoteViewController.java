@@ -1,5 +1,6 @@
 package com.don.notesapp.controller;
 
+import com.don.notesapp.entity.CollaboratorRole;
 import com.don.notesapp.entity.Note;
 import com.don.notesapp.entity.User;
 import com.don.notesapp.service.CollaborationService;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;
@@ -48,16 +50,13 @@ public class NoteViewController {
         }
 
         model.addAttribute("notes", notes);
-
         return "notes";
     }
 
     // Show create note form
     @GetMapping("/create")
     public String showCreateForm(Model model) {
-
         model.addAttribute("note", new Note());
-
         return "create-note";
     }
 
@@ -72,7 +71,6 @@ public class NoteViewController {
         }
 
         noteService.createNote(note);
-
         return "redirect:/my-notes";
     }
 
@@ -84,8 +82,10 @@ public class NoteViewController {
             Authentication authentication) {
 
         Note note = noteService.getNoteById(id);
+        User currentUser = getCurrentUser(authentication);
 
         model.addAttribute("note", note);
+        model.addAttribute("collaborators", collaborationService.getCollaborators(note));
         addPermissions(model, note, authentication);
 
         return "note-detail";
@@ -123,17 +123,13 @@ public class NoteViewController {
         }
 
         noteService.updateNote(id, note);
-
         return "redirect:/my-notes";
     }
 
     // Delete note
     @PostMapping("/delete/{id}")
-    public String deleteNote(
-            @PathVariable Long id) {
-
+    public String deleteNote(@PathVariable Long id) {
         noteService.deleteNote(id);
-
         return "redirect:/my-notes";
     }
 
@@ -146,10 +142,7 @@ public class NoteViewController {
         Note note = noteService.getNoteById(id);
 
         model.addAttribute("note", note);
-        model.addAttribute(
-                "versions",
-                noteService.getVersionHistory(id)
-        );
+        model.addAttribute("versions", noteService.getVersionHistory(id));
 
         return "note-history";
     }
@@ -160,29 +153,126 @@ public class NoteViewController {
             @PathVariable Long noteId,
             @PathVariable Long versionId) {
 
-        noteService.restoreVersion(
-                noteId,
-                versionId
-        );
-
+        noteService.restoreVersion(noteId, versionId);
         return "redirect:/my-notes/edit/" + noteId;
     }
+
+    // ─── Collaborator endpoints ───────────────────────────────────────────────
+
+    // Add collaborator
+    @PostMapping("/{id}/collaborators/add")
+    public String addCollaborator(
+            @PathVariable Long id,
+            @RequestParam String username,
+            @RequestParam CollaboratorRole role,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+
+        Note note = noteService.getNoteById(id);
+        User currentUser = getCurrentUser(authentication);
+
+        if (!collaborationService.canShare(note, currentUser)) {
+            redirectAttributes.addFlashAttribute("shareError",
+                    "You don't have permission to share this note.");
+            return "redirect:/my-notes/" + id;
+        }
+
+        User targetUser = userService.findByUsername(username);
+
+        if (targetUser == null) {
+            redirectAttributes.addFlashAttribute("shareError",
+                    "User '" + username + "' not found.");
+            return "redirect:/my-notes/" + id;
+        }
+
+        if (targetUser.getId().equals(currentUser.getId())) {
+            redirectAttributes.addFlashAttribute("shareError",
+                    "You cannot add yourself as a collaborator.");
+            return "redirect:/my-notes/" + id;
+        }
+
+        collaborationService.shareNote(note, targetUser, role);
+        redirectAttributes.addFlashAttribute("shareSuccess",
+                "Added " + username + " as " + role.name().toLowerCase() + ".");
+
+        return "redirect:/my-notes/" + id;
+    }
+
+    // Change collaborator role
+    @PostMapping("/{id}/collaborators/{userId}/role")
+    public String changeCollaboratorRole(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @RequestParam CollaboratorRole role,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+
+        Note note = noteService.getNoteById(id);
+        User currentUser = getCurrentUser(authentication);
+
+        if (!collaborationService.canChangeRole(note, currentUser)) {
+            redirectAttributes.addFlashAttribute("shareError",
+                    "You don't have permission to change roles.");
+            return "redirect:/my-notes/" + id;
+        }
+
+        User targetUser = userService.findById(userId);
+
+        if (targetUser == null) {
+            redirectAttributes.addFlashAttribute("shareError", "User not found.");
+            return "redirect:/my-notes/" + id;
+        }
+
+        collaborationService.changeRole(note, targetUser, role);
+        redirectAttributes.addFlashAttribute("shareSuccess", "Role updated.");
+
+        return "redirect:/my-notes/" + id;
+    }
+
+    // Remove collaborator
+    @PostMapping("/{id}/collaborators/{userId}/remove")
+    public String removeCollaborator(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+
+        Note note = noteService.getNoteById(id);
+        User currentUser = getCurrentUser(authentication);
+
+        if (!collaborationService.canShare(note, currentUser)) {
+            redirectAttributes.addFlashAttribute("shareError",
+                    "You don't have permission to remove collaborators.");
+            return "redirect:/my-notes/" + id;
+        }
+
+        User targetUser = userService.findById(userId);
+
+        if (targetUser == null) {
+            redirectAttributes.addFlashAttribute("shareError", "User not found.");
+            return "redirect:/my-notes/" + id;
+        }
+
+        collaborationService.removeCollaborator(note, targetUser);
+        redirectAttributes.addFlashAttribute("shareSuccess", "Collaborator removed.");
+
+        return "redirect:/my-notes/" + id;
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private void addPermissions(
             Model model,
             Note note,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
+
         User currentUser = getCurrentUser(authentication);
 
         model.addAttribute("canView", collaborationService.canView(note, currentUser));
         model.addAttribute("canEdit", collaborationService.canEdit(note, currentUser));
         model.addAttribute("canDelete", collaborationService.canDelete(note, currentUser));
         model.addAttribute("canShare", collaborationService.canShare(note, currentUser));
-        model.addAttribute(
-                "canChangeRole",
-                collaborationService.canChangeRole(note, currentUser)
-        );
+        model.addAttribute("canChangeRole", collaborationService.canChangeRole(note, currentUser));
     }
 
     private User getCurrentUser(Authentication authentication) {

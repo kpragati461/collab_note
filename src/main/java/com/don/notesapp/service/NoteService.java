@@ -63,40 +63,74 @@ public class NoteService {
     }
 
     /*
-     * GET ALL NOTES OWNED BY CURRENT USER
-     */
-    @Transactional(readOnly = true)
-    public List<Note> getAllNotes() {
+ * GET ALL NOTES OWNED BY OR SHARED WITH CURRENT USER
+ */
+@Transactional(readOnly = true)
+public List<Note> getAllNotes() {
 
-        User currentUser = getCurrentUser();
+    User currentUser = getCurrentUser();
 
-        return noteRepository.findByOwner(
-                currentUser,
-                Sort.by(
-                        Sort.Direction.DESC,
-                        "createdAt"
-                )
-        );
-    }
+    // Notes owned by user
+    List<Note> ownedNotes = noteRepository.findByOwner(
+            currentUser,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+    );
 
-    /*
-     * SEARCH NOTES OWNED BY CURRENT USER
-     */
-    @Transactional(readOnly = true)
-    public List<Note> searchNotes(String keyword) {
+    // Notes shared with user as collaborator
+    List<Note> collaboratedNotes = noteRepository
+            .findByCollaboratorsUser(
+                    currentUser,
+                    Sort.by(Sort.Direction.DESC, "createdAt")
+            );
 
-        User currentUser = getCurrentUser();
+    // Merge both lists — no duplicates
+    List<Note> allNotes = new ArrayList<>(ownedNotes);
 
-        return noteRepository.findByOwnerAndTitleContainingIgnoreCase(
-                currentUser,
-                keyword,
-                Sort.by(
-                        Sort.Direction.DESC,
-                        "createdAt"
-                )
-        );
-    }
+    collaboratedNotes.forEach(note -> {
+        if (allNotes.stream().noneMatch(n -> n.getId().equals(note.getId()))) {
+            allNotes.add(note);
+        }
+    });
 
+    // Sort merged list by createdAt DESC
+    allNotes.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+
+    return allNotes;
+}
+
+/*
+ * SEARCH NOTES OWNED BY OR SHARED WITH CURRENT USER
+ */
+@Transactional(readOnly = true)
+public List<Note> searchNotes(String keyword) {
+
+    User currentUser = getCurrentUser();
+
+    List<Note> ownedNotes = noteRepository.findByOwnerAndTitleContainingIgnoreCase(
+            currentUser,
+            keyword,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+    );
+
+    List<Note> collaboratedNotes = noteRepository
+            .findByCollaboratorsUserAndTitleContainingIgnoreCase(
+                    currentUser,
+                    keyword,
+                    Sort.by(Sort.Direction.DESC, "createdAt")
+            );
+
+    List<Note> allNotes = new ArrayList<>(ownedNotes);
+
+    collaboratedNotes.forEach(note -> {
+        if (allNotes.stream().noneMatch(n -> n.getId().equals(note.getId()))) {
+            allNotes.add(note);
+        }
+    });
+
+    allNotes.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+
+    return allNotes;
+}
     /*
      * GET ONE NOTE
      *

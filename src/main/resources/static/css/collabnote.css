@@ -132,3 +132,17 @@ textarea { min-height: 245px; line-height: 1.65; resize: vertical; }
     .search-row .button { flex: 1; }
     .note-grid { grid-template-columns: 1fr; }
 }
+/* Role badges */
+.role-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.role-badge.owner { background: #FFD93D; color: #5A3E00; }
+.role-badge.editor { background: var(--accent); color: #fff; }
+.role-badge.viewer { background: var(--border); color: var(--text-secondary); }

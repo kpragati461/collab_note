@@ -22,4 +22,10 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
             Long id,
             User owner
     );
+    // Notes shared with a user as collaborator
+List<Note> findByCollaboratorsUser(User user, Sort sort);
+
+// Search in collaborated notes
+List<Note> findByCollaboratorsUserAndTitleContainingIgnoreCase(
+        User user, String keyword, Sort sort);
 }

@@ -16,8 +16,15 @@
         <header class="page-top">
             <div><p class="eyebrow">Your private space</p><h1>Welcome!</h1><p class="page-subtitle">Capture your thoughts, organize your mind.</p></div>
             <div style="display:flex; gap:14px; align-items:center;">
-                <div class="theme-toggle" aria-label="Choose color theme"><button type="button" data-theme-choice="light" onclick="setTheme('light')" aria-label="Light mode">☼</button><button type="button" data-theme-choice="dark" onclick="setTheme('dark')" aria-label="Dark mode">☾</button></div>
-                <a class="button" href="/my-notes/create">＋ New note</a>
+              <div class="theme-toggle" aria-label="Choose color theme">
+              <button type="button" data-theme-choice="light" onclick="setTheme('light')" aria-label="Light mode">☼</button>
+              <button type="button" data-theme-choice="dark" onclick="setTheme('dark')" aria-label="Dark mode">☾</button>
+              </div>
+              <a class="button" href="/my-notes/create">＋ New note</a>
+              <form action="/logout" method="post" style="margin:0;">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <button type="submit" class="button button-secondary">Logout</button>
+              </form>
             </div>
         </header>
 

@@ -17,8 +17,14 @@
             <div>
                 <p class="eyebrow">Note</p>
                 <h1 th:text="${note.title}"></h1>
+
+                <!-- Role badge -->
+                <span th:if="${canEdit and canDelete}" class="role-badge owner">Owner</span>
+                <span th:if="${canEdit and !canDelete}" class="role-badge editor">Editor</span>
+                <span th:if="${!canEdit}" class="role-badge viewer">Viewer</span>
+
                 <p class="page-subtitle" th:if="${!note.tags.isEmpty()}">
-                    <span th:each="tag : ${note.tags}" th:text="${'#' + tag + ' '}" ></span>
+                    <span th:each="tag : ${note.tags}" th:text="${'#' + tag + ' '}"></span>
                 </p>
             </div>
             <div style="display:flex; gap:12px; align-items:center;">
@@ -27,19 +33,124 @@
         </header>
 
         <section class="form-wrap">
+
+            <!-- Note content card -->
             <div class="form-card">
-                <p class="page-subtitle" th:text="${#temporals.format(note.updatedAt != null ? note.updatedAt : note.createdAt, 'MMM d, yyyy · HH:mm')}"></p>
-                <div class="note-content" style="margin-top: 20px; white-space: pre-wrap; font-size: 16px; line-height: 1.8;" th:text="${note.content}"></div>
-                <div class="form-actions" style="justify-content:flex-start;">
-                    <a th:if="${canEdit}" class="button" th:href="@{/my-notes/edit/{id}(id=${note.id})}">Update</a>
-                    <a class="button button-secondary" th:href="@{/my-notes/{id}/history(id=${note.id})}">History</a>
-                    <span th:if="${canShare}" class="page-subtitle">Collaborators</span>
-                    <form th:if="${canDelete}" th:action="@{/my-notes/delete/{id}(id=${note.id})}" method="post" style="display:inline;">
-                        <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                        <button class="button button-danger" type="submit" onclick="return confirm('Delete this note?')">Delete</button>
+                <p class="page-subtitle"
+                   th:text="${#temporals.format(note.updatedAt != null ? note.updatedAt : note.createdAt, 'MMM d, yyyy · HH:mm')}">
+                </p>
+                <div class="note-content"
+                     style="margin-top: 20px; white-space: pre-wrap; font-size: 16px; line-height: 1.8;"
+                     th:text="${note.content}">
+                </div>
+
+                <div class="form-actions" style="justify-content:flex-start; margin-top: 24px;">
+                    <a th:if="${canEdit}" class="button"
+                       th:href="@{/my-notes/edit/{id}(id=${note.id})}">✏️ Edit</a>
+                    <a class="button button-secondary"
+                       th:href="@{/my-notes/{id}/history(id=${note.id})}">🕐 History</a>
+                    <form th:if="${canDelete}"
+                          th:action="@{/my-notes/delete/{id}(id=${note.id})}"
+                          method="post" style="display:inline;">
+                        <input th:if="${_csrf != null}" type="hidden"
+                               th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button class="button button-danger" type="submit"
+                                onclick="return confirm('Delete this note?')">🗑 Delete</button>
                     </form>
                 </div>
             </div>
+
+            <!-- Collaborators section — only visible to Owner -->
+            <div th:if="${canShare}" class="form-card" style="margin-top: 24px;">
+                <h3 style="margin-bottom: 16px;">👥 Collaborators</h3>
+
+                <!-- Current collaborators list -->
+                <div th:if="${collaborators != null and !collaborators.isEmpty()}">
+                    <div th:each="collab : ${collaborators}"
+                         style="display:flex; align-items:center; justify-content:space-between;
+                                padding: 10px 0; border-bottom: 1px solid var(--border);">
+                        <div>
+                            <span style="font-weight:600;"
+                                  th:text="${collab.user.username}"></span>
+                            <span th:switch="${collab.role.name()}"
+                                  style="margin-left:8px; font-size:12px; padding:3px 10px;
+                                         border-radius:20px;">
+                                <span th:case="'EDITOR'"
+                                      style="background:var(--accent); color:#fff;"
+                                      th:text="${collab.role.name()}"></span>
+                                <span th:case="'VIEWER'"
+                                      style="background:var(--border); color:var(--text-secondary);"
+                                      th:text="${collab.role.name()}"></span>
+                                <span th:case="*"
+                                      th:text="${collab.role.name()}"></span>
+                            </span>
+                        </div>
+
+                        <!-- Change role + Remove (owner only) -->
+                        <div th:if="${canChangeRole}"
+                             style="display:flex; gap:8px; align-items:center;">
+                            <form th:action="@{/my-notes/{id}/collaborators/{userId}/role(id=${note.id}, userId=${collab.user.id})}"
+                                  method="post" style="display:inline;">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <select name="role" onchange="this.form.submit()"
+                                        style="padding:4px 8px; border-radius:8px;
+                                               border:1px solid var(--border);
+                                               background:var(--surface); color:var(--text);">
+                                    <option value="EDITOR"
+                                            th:selected="${collab.role.name() == 'EDITOR'}">Editor</option>
+                                    <option value="VIEWER"
+                                            th:selected="${collab.role.name() == 'VIEWER'}">Viewer</option>
+                                </select>
+                            </form>
+                            <form th:action="@{/my-notes/{id}/collaborators/{userId}/remove(id=${note.id}, userId=${collab.user.id})}"
+                                  method="post" style="display:inline;">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button type="submit" class="button button-danger"
+                                        style="padding:4px 12px; font-size:13px;">Remove</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <p th:if="${collaborators == null or collaborators.isEmpty()}"
+                   class="page-subtitle" style="margin-bottom:16px;">
+                    No collaborators yet.
+                </p>
+
+                <!-- Add collaborator form -->
+                <div th:if="${canShare}" style="margin-top: 20px;">
+                    <p style="font-weight:600; margin-bottom:10px;">Add collaborator</p>
+                    <form th:action="@{/my-notes/{id}/collaborators/add(id=${note.id})}"
+                          method="post"
+                          style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <input type="text" name="username"
+                               placeholder="Enter username..."
+                               style="flex:1; padding:10px 14px; border-radius:10px;
+                                      border:1px solid var(--border);
+                                      background:var(--surface); color:var(--text);
+                                      font-size:14px; min-width:180px;"/>
+                        <select name="role"
+                                style="padding:10px 14px; border-radius:10px;
+                                       border:1px solid var(--border);
+                                       background:var(--surface); color:var(--text);
+                                       font-size:14px;">
+                            <option value="EDITOR">Editor</option>
+                            <option value="VIEWER">Viewer</option>
+                        </select>
+                        <button type="submit" class="button">Add</button>
+                    </form>
+
+                    <!-- Error/success message -->
+                    <p th:if="${shareError}"
+                       th:text="${shareError}"
+                       style="color:var(--danger); margin-top:8px; font-size:13px;"></p>
+                    <p th:if="${shareSuccess}"
+                       th:text="${shareSuccess}"
+                       style="color:green; margin-top:8px; font-size:13px;"></p>
+                </div>
+            </div>
+
         </section>
     </main>
 </div>

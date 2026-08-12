@@ -31,6 +31,9 @@ public class UserService implements UserDetailsService {
     public User findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
+    public User findById(Long id) {
+    return userRepository.findById(id).orElse(null);
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username)
