@@ -70,6 +70,13 @@ public class Note {
     @OrderBy("versionNumber DESC")
     private List<NoteVersion> versions = new ArrayList<>();
 
+        @OneToMany(
+            mappedBy = "note",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+        )
+        private List<NoteAttachment> attachments = new ArrayList<>();
+
     /*
      * Tags attached to this note.
      */
@@ -157,6 +164,15 @@ public class Note {
     public void setVersions(List<NoteVersion> versions) {
         this.versions =
                 versions == null ? new ArrayList<>() : versions;
+    }
+
+    public List<NoteAttachment> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<NoteAttachment> attachments) {
+        this.attachments =
+                attachments == null ? new ArrayList<>() : attachments;
     }
 
     public List<Tag> getTags() {

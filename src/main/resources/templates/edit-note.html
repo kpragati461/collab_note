@@ -48,7 +48,7 @@
                       margin-bottom:12px; min-height:18px;"></p>
 
             <form th:action="@{/my-notes/edit/{id}(id=${note.id})}"
-                  th:object="${note}" method="post">
+                th:object="${note}" method="post" enctype="multipart/form-data">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 
                 <div class="field">
@@ -69,6 +69,13 @@
                     <label for="tagsInput">Tags</label>
                     <input id="tagsInput" type="text" th:field="*{tagsInput}"/>
                     <p class="help-text">Separate tags with commas.</p>
+                </div>
+
+                <div class="field">
+                    <label for="attachments">Add pictures or videos</label>
+                    <input id="attachments" type="file" name="attachments"
+                           accept="image/*,video/*" multiple/>
+                    <p class="help-text">Add one or more images or videos, up to 50 MB each.</p>
                 </div>
 
                 <div class="form-actions">
