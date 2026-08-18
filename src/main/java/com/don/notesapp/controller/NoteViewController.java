@@ -103,6 +103,7 @@ public class NoteViewController {
 
         model.addAttribute("note", note);
         model.addAttribute("canEdit", true);
+        model.addAttribute("currentUsername", authentication.getName());
 
         return "edit-note";
     }

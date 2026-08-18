@@ -1,1 +1,227 @@
-<!DOCTYPE html><html lang="en" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Edit Note · CollabNote</title><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/><link rel="stylesheet" href="/css/collabnote.css"/><script src="/js/theme.js"></script></head><body><main class="main-content"><div class="form-wrap"><header class="page-top"><a class="brand" href="/my-notes"><span class="brand-mark">✦</span>CollabNote</a><div class="theme-toggle"><button type="button" data-theme-choice="light" onclick="setTheme('light')">☼</button><button type="button" data-theme-choice="dark" onclick="setTheme('dark')">☾</button></div></header><section class="form-card"><p class="eyebrow">Your thought, refined</p><h1>Edit note</h1><p class="page-subtitle">Every save is kept safely in version history.</p><form th:action="@{/my-notes/edit/{id}(id=${note.id})}" th:object="${note}" method="post"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/><div class="field"><label for="title">Title</label><input id="title" type="text" th:field="*{title}"/><span th:if="${#fields.hasErrors('title')}" th:errors="*{title}" class="error-text"></span></div><div class="field"><label for="content">Your note</label><textarea id="content" th:field="*{content}"></textarea><span th:if="${#fields.hasErrors('content')}" th:errors="*{content}" class="error-text"></span></div><div class="field"><label for="tagsInput">Tags</label><input id="tagsInput" type="text" th:field="*{tagsInput}"/><p class="help-text">Separate tags with commas.</p></div><div class="form-actions"><a class="button button-secondary" href="/my-notes">Cancel</a><button class="button" type="submit">Save changes</button></div></form></section></div></main></body></html>
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Edit Note · CollabNote</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/css/collabnote.css"/>
+    <script src="/js/theme.js"></script>
+
+<script src="/js/sockjs.min.js"></script>
+<script src="/js/stomp.min.js"></script>
+</head>
+<body>
+<main class="main-content">
+    <div class="form-wrap">
+        <header class="page-top">
+            <a class="brand" href="/my-notes">
+                <span class="brand-mark">✦</span>CollabNote
+            </a>
+            <div style="display:flex; align-items:center; gap:12px;">
+                <!-- Live collaborator indicator -->
+                <div id="collab-indicator"
+                     style="display:none; align-items:center; gap:6px;
+                            font-size:13px; color:var(--text-secondary);">
+                    <span style="width:8px; height:8px; border-radius:50%;
+                                 background:#22c55e; display:inline-block;
+                                 animation: pulse 1.5s infinite;"></span>
+                    <span id="collab-text">Someone is editing...</span>
+                </div>
+                <div class="theme-toggle">
+                    <button type="button" data-theme-choice="light" onclick="setTheme('light')">☼</button>
+                    <button type="button" data-theme-choice="dark" onclick="setTheme('dark')">☾</button>
+                </div>
+            </div>
+        </header>
+
+        <section class="form-card">
+            <p class="eyebrow">Your thought, refined</p>
+            <h1>Edit note</h1>
+            <p class="page-subtitle">Every save is kept safely in version history.</p>
+
+            <!-- Auto-save status -->
+            <p id="sync-status"
+               style="font-size:12px; color:var(--text-secondary);
+                      margin-bottom:12px; min-height:18px;"></p>
+
+            <form th:action="@{/my-notes/edit/{id}(id=${note.id})}"
+                  th:object="${note}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                <div class="field">
+                    <label for="title">Title</label>
+                    <input id="title" type="text" th:field="*{title}"/>
+                    <span th:if="${#fields.hasErrors('title')}"
+                          th:errors="*{title}" class="error-text"></span>
+                </div>
+
+                <div class="field">
+                    <label for="content">Your note</label>
+                    <textarea id="content" th:field="*{content}"></textarea>
+                    <span th:if="${#fields.hasErrors('content')}"
+                          th:errors="*{content}" class="error-text"></span>
+                </div>
+
+                <div class="field">
+                    <label for="tagsInput">Tags</label>
+                    <input id="tagsInput" type="text" th:field="*{tagsInput}"/>
+                    <p class="help-text">Separate tags with commas.</p>
+                </div>
+
+                <div class="form-actions">
+                    <a class="button button-secondary" href="/my-notes">Cancel</a>
+                    <button class="button" type="submit">Save changes</button>
+                </div>
+            </form>
+        </section>
+    </div>
+</main>
+
+<!-- Pulse animation -->
+<style>
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+</style>
+
+<!-- WebSocket script -->
+<script th:inline="javascript">
+    const noteId = /*[[${note.id}]]*/ 0;
+    const currentUser = /*[[${currentUsername}]]*/ '';
+
+    let stompClient = null;
+    let isRemoteUpdate = false;
+    let debounceTimer = null;
+    let collabTimeout = null;
+
+    const titleInput = document.getElementById('title');
+    const contentInput = document.getElementById('content');
+    const syncStatus = document.getElementById('sync-status');
+    const collabIndicator = document.getElementById('collab-indicator');
+    const collabText = document.getElementById('collab-text');
+
+    // Connect to WebSocket
+    function connect() {
+        const socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null; // silence console logs
+
+        stompClient.connect({}, function (frame) {
+            // Subscribe to this note's channel
+            stompClient.subscribe('/topic/notes/' + noteId, function (message) {
+                const data = JSON.parse(message.body);
+                handleIncomingMessage(data);
+            });
+
+            // Announce joining
+            stompClient.send(
+                '/app/notes/' + noteId + '/join',
+                {},
+                JSON.stringify({})
+            );
+        });
+    }
+
+    // Handle incoming messages from other users
+    function handleIncomingMessage(data) {
+        if (data.editedBy === currentUser) return; // ignore own messages
+
+        if (data.type === 'JOIN') {
+            showCollabIndicator(data.editedBy + ' joined');
+            return;
+        }
+
+        if (data.type === 'LEAVE') {
+            showSyncStatus(data.editedBy + ' left');
+            hideCollabIndicator();
+            return;
+        }
+
+        if (data.type === 'EDIT') {
+            showCollabIndicator(data.editedBy + ' is editing...');
+
+            // Apply remote changes without triggering our own send
+            isRemoteUpdate = true;
+
+            if (data.title !== null && data.title !== titleInput.value) {
+                titleInput.value = data.title;
+            }
+
+            if (data.content !== null && data.content !== contentInput.value) {
+                // Preserve cursor position
+                const cursorPos = contentInput.selectionStart;
+                contentInput.value = data.content;
+                contentInput.setSelectionRange(cursorPos, cursorPos);
+            }
+
+            isRemoteUpdate = false;
+
+            // Hide indicator after 2 seconds of no edits
+            clearTimeout(collabTimeout);
+            collabTimeout = setTimeout(hideCollabIndicator, 2000);
+        }
+    }
+
+    // Send edit to other users (debounced — waits 300ms after typing stops)
+    function sendEdit() {
+        if (isRemoteUpdate || !stompClient || !stompClient.connected) return;
+
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () {
+            const message = {
+                noteId: noteId,
+                title: titleInput.value,
+                content: contentInput.value,
+                type: 'EDIT'
+            };
+
+            stompClient.send(
+                '/app/notes/' + noteId + '/edit',
+                {},
+                JSON.stringify(message)
+            );
+
+            showSyncStatus('Syncing...');
+        }, 300);
+    }
+
+    // UI helpers
+    function showCollabIndicator(text) {
+        collabText.textContent = text;
+        collabIndicator.style.display = 'flex';
+    }
+
+    function hideCollabIndicator() {
+        collabIndicator.style.display = 'none';
+    }
+
+    function showSyncStatus(text) {
+        syncStatus.textContent = text;
+        setTimeout(() => syncStatus.textContent = '', 2000);
+    }
+
+    // Listen for typing
+    titleInput.addEventListener('input', sendEdit);
+    contentInput.addEventListener('input', sendEdit);
+
+    // Announce leaving when tab closes
+    window.addEventListener('beforeunload', function () {
+        if (stompClient && stompClient.connected) {
+            stompClient.send(
+                '/app/notes/' + noteId + '/leave',
+                {},
+                JSON.stringify({})
+            );
+        }
+    });
+
+    // Start connection
+    connect();
+</script>
+
+</body>
+</html>
