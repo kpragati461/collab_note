@@ -4,6 +4,7 @@ import com.don.notesapp.entity.CollaboratorRole;
 import com.don.notesapp.entity.Note;
 import com.don.notesapp.entity.User;
 import com.don.notesapp.service.CollaborationService;
+import com.don.notesapp.service.NoteAttachmentService;
 import com.don.notesapp.service.NoteService;
 import com.don.notesapp.service.UserService;
 import jakarta.validation.Valid;
@@ -13,7 +14,9 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalTime;
 import java.util.List;
 
 @Controller
@@ -21,15 +24,18 @@ import java.util.List;
 public class NoteViewController {
 
     private final NoteService noteService;
+    private final NoteAttachmentService noteAttachmentService;
     private final UserService userService;
     private final CollaborationService collaborationService;
 
     public NoteViewController(
             NoteService noteService,
+            NoteAttachmentService noteAttachmentService,
             UserService userService,
             CollaborationService collaborationService
     ) {
         this.noteService = noteService;
+        this.noteAttachmentService = noteAttachmentService;
         this.userService = userService;
         this.collaborationService = collaborationService;
     }
@@ -50,7 +56,26 @@ public class NoteViewController {
         }
 
         model.addAttribute("notes", notes);
+        model.addAttribute("greeting", getGreeting());
         return "notes";
+    }
+
+    private String getGreeting() {
+        int hour = LocalTime.now().getHour();
+
+        if (hour < 5) {
+            return "Good night!";
+        }
+        if (hour < 12) {
+            return "Good morning!";
+        }
+        if (hour < 18) {
+            return "Good afternoon!";
+        }
+        if (hour < 22) {
+            return "Good evening!";
+        }
+        return "Good night!";
     }
 
     // Show create note form
@@ -64,13 +89,15 @@ public class NoteViewController {
     @PostMapping("/create")
     public String createNote(
             @Valid @ModelAttribute("note") Note note,
-            BindingResult result) {
+            BindingResult result,
+            @RequestParam(name = "attachments", required = false) List<MultipartFile> attachments) {
 
         if (result.hasErrors()) {
             return "create-note";
         }
 
-        noteService.createNote(note);
+        Note savedNote = noteService.createNote(note);
+        noteAttachmentService.addAttachments(savedNote, attachments);
         return "redirect:/my-notes";
     }
 
@@ -114,7 +141,8 @@ public class NoteViewController {
             @PathVariable Long id,
             @Valid @ModelAttribute("note") Note note,
             BindingResult result,
-            Authentication authentication) {
+            Authentication authentication,
+            @RequestParam(name = "attachments", required = false) List<MultipartFile> attachments) {
 
         ensureCanEdit(noteService.getNoteById(id), authentication);
 
@@ -123,13 +151,16 @@ public class NoteViewController {
             return "edit-note";
         }
 
-        noteService.updateNote(id, note);
+        Note savedNote = noteService.updateNote(id, note);
+        noteAttachmentService.addAttachments(savedNote, attachments);
         return "redirect:/my-notes";
     }
 
     // Delete note
     @PostMapping("/delete/{id}")
     public String deleteNote(@PathVariable Long id) {
+        Note note = noteService.getNoteById(id);
+        noteAttachmentService.deleteFiles(note);
         noteService.deleteNote(id);
         return "redirect:/my-notes";
     }

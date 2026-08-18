@@ -14,7 +14,7 @@
 <div class="app-shell">
     <main class="main-content">
         <header class="page-top">
-            <div><p class="eyebrow">Your private space</p><h1>Welcome!</h1><p class="page-subtitle">Capture your thoughts, organize your mind.</p></div>
+            <div><p class="eyebrow">Your private space</p><h1 th:text="${greeting}">Welcome!</h1><p class="page-subtitle">Capture your thoughts, organize your mind.</p></div>
             <div style="display:flex; gap:14px; align-items:center;">
               <div class="theme-toggle" aria-label="Choose color theme">
               <button type="button" data-theme-choice="light" onclick="setTheme('light')" aria-label="Light mode">☼</button>
