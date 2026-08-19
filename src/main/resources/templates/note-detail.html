@@ -39,8 +39,7 @@
                 <p class="page-subtitle"
                    th:text="${#temporals.format(note.updatedAt != null ? note.updatedAt : note.createdAt, 'MMM d, yyyy · HH:mm')}">
                 </p>
-                <div class="note-content"
-                     style="margin-top: 20px; white-space: pre-wrap; font-size: 16px; line-height: 1.8;"
+                 <div class="note-body" style="margin-top: 20px;"
                      th:text="${note.content}">
                 </div>
 
