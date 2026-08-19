@@ -90,9 +90,10 @@ public class NoteViewController {
     public String createNote(
             @Valid @ModelAttribute("note") Note note,
             BindingResult result,
-            @RequestParam(name = "attachments", required = false) List<MultipartFile> attachments) {
+            @RequestParam(name = "mediaFiles", required = false) List<MultipartFile> attachments) {
 
         if (result.hasErrors()) {
+            System.out.println("=== create errors: " + result.getAllErrors());
             return "create-note";
         }
 

@@ -1,1 +1,145 @@
-<!DOCTYPE html><html lang="en" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>New Note · CollabNote</title><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/><link rel="stylesheet" href="/css/collabnote.css"/><script src="/js/theme.js"></script></head><body><main class="main-content"><div class="form-wrap"><header class="page-top"><a class="brand" href="/my-notes"><span class="brand-mark">✦</span>CollabNote</a><div class="theme-toggle"><button type="button" data-theme-choice="light" onclick="setTheme('light')">☼</button><button type="button" data-theme-choice="dark" onclick="setTheme('dark')">☾</button></div></header><section class="form-card"><p class="eyebrow">A fresh page</p><h1>Write a note</h1><p class="page-subtitle">Give your thoughts room to settle.</p><form th:action="@{/my-notes/create}" th:object="${note}" method="post" enctype="multipart/form-data"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/><div class="field"><label for="title">Title</label><input id="title" type="text" th:field="*{title}" placeholder="What is on your mind?"/><span th:if="${#fields.hasErrors('title')}" th:errors="*{title}" class="error-text"></span></div><div class="field"><label for="content">Your note</label><textarea id="content" th:field="*{content}" placeholder="Start writing…"></textarea><span th:if="${#fields.hasErrors('content')}" th:errors="*{content}" class="error-text"></span></div><div class="field"><label for="tagsInput">Tags</label><input id="tagsInput" type="text" th:field="*{tagsInput}" placeholder="work, ideas, reading"/><p class="help-text">Separate tags with commas.</p></div><div class="field"><label for="attachments">Pictures or videos</label><input id="attachments" type="file" name="attachments" accept="image/*,video/*" multiple/><p class="help-text">Add one or more images or videos, up to 50 MB each.</p></div><div class="form-actions"><a class="button button-secondary" href="/my-notes">Cancel</a><button class="button" type="submit">Save note</button></div></form></section></div></main></body></html>
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<title>New Note · CollabNote</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com"/>
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+	<link rel="stylesheet" href="/css/collabnote.css"/>
+	<script src="/js/theme.js"></script>
+</head>
+<body>
+<main class="main-content">
+	<div class="form-wrap">
+		<header class="page-top">
+			<a class="brand" href="/my-notes"><span class="brand-mark">✦</span>CollabNote</a>
+			<div class="theme-toggle">
+				<button type="button" data-theme-choice="light" onclick="setTheme('light')">☼</button>
+				<button type="button" data-theme-choice="dark" onclick="setTheme('dark')">☾</button>
+			</div>
+		</header>
+		<section class="form-card">
+			<p class="eyebrow">A fresh page</p>
+			<h1>Write a note</h1>
+			<p class="page-subtitle">Give your thoughts room to settle.</p>
+			<form th:action="@{/my-notes/create}" th:object="${note}" method="post" enctype="multipart/form-data">
+				<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+				<div class="field">
+					<label for="title">Title</label>
+					<input id="title" type="text" th:field="*{title}" placeholder="What is on your mind?"/>
+					<span th:if="${#fields.hasErrors('title')}" th:errors="*{title}" class="error-text"></span>
+					<button type="button" id="generate-title-btn" style="margin-top:8px; font-size:13px;" class="button button-secondary">✨ Generate Title</button>
+					<span id="title-loading" style="display:none; font-size:12px; color:var(--text-secondary); margin-left:8px;">Generating...</span>
+				</div>
+				<div class="field">
+					<label for="content">Your note</label>
+					<textarea id="content" th:field="*{content}" placeholder="Start writing…"></textarea>
+					<span th:if="${#fields.hasErrors('content')}" th:errors="*{content}" class="error-text"></span>
+				</div>
+				<div class="field">
+					<label for="tagsInput">Tags</label>
+					<input id="tagsInput" type="text" th:field="*{tagsInput}" placeholder="work, ideas, reading"/>
+					<p class="help-text">Separate tags with commas.</p>
+					<button type="button" id="generate-tags-btn" style="margin-top:8px; font-size:13px;" class="button button-secondary">✨ Generate Tags</button>
+					<span id="tags-loading" style="display:none; font-size:12px; color:var(--text-secondary); margin-left:8px;">Generating...</span>
+				</div>
+				<div class="field">
+					<label for="attachments">Pictures or videos</label>
+					<input id="attachments" type="file" name="mediaFiles" accept="image/*,video/*" multiple/>
+					<p class="help-text">Add one or more images or videos, up to 50 MB each.</p>
+				</div>
+				<div class="form-actions">
+					<a class="button button-secondary" href="/my-notes">Cancel</a>
+					<button class="button" type="submit">Save note</button>
+				</div>
+			</form>
+		</section>
+	</div>
+</main>
+<script>
+	document.getElementById('generate-title-btn').addEventListener('click', async function () {
+		const content = document.getElementById('content').value;
+
+		if (!content || content.trim().length < 10) {
+			alert('Please write some content first!');
+			return;
+		}
+
+		const button = document.getElementById('generate-title-btn');
+		const loading = document.getElementById('title-loading');
+		const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+		button.disabled = true;
+		loading.style.display = 'inline';
+
+		try {
+			const response = await fetch('/api/ai/generate-title', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': csrfToken
+				},
+				body: JSON.stringify({ content: content })
+			});
+
+			const title = await response.text();
+
+			if (title && title !== 'Untitled Note') {
+				document.getElementById('title').value = title;
+			} else {
+				alert('Could not generate title. Try again!');
+			}
+		} catch (error) {
+			alert('Something went wrong. Try again!');
+		} finally {
+			button.disabled = false;
+			loading.style.display = 'none';
+		}
+	});
+</script>
+<script>
+	// AI Tag Generator
+	document.getElementById('generate-tags-btn').addEventListener('click', async function () {
+		const content = document.getElementById('content').value;
+
+		if (!content || content.trim().length < 10) {
+			alert('Please write some content first!');
+			return;
+		}
+
+		const button = document.getElementById('generate-tags-btn');
+		const loading = document.getElementById('tags-loading');
+		const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+		button.disabled = true;
+		loading.style.display = 'inline';
+
+		try {
+			const response = await fetch('/api/ai/generate-tags', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': csrfToken
+				},
+				body: JSON.stringify({ content: content })
+			});
+
+			const tags = await response.text();
+
+			if (tags && tags.trim().length > 0) {
+				document.getElementById('tagsInput').value = tags.trim();
+			} else {
+				alert('Could not generate tags. Try again!');
+			}
+		} catch (error) {
+			alert('Something went wrong. Try again!');
+		} finally {
+			button.disabled = false;
+			loading.style.display = 'none';
+		}
+	});
+</script>
+</body>
+</html>
