@@ -241,7 +241,11 @@
             const summary = await response.text();
 
             if (summary && summary.trim().length > 0) {
-                result.textContent = '📝 ' + summary;
+                result.innerHTML = '📝 ' + summary
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **bold**
+                .replace(/^\* /gm, '• ')                            // * bullet → •
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')               // *italic*
+                .replace(/\n/g, '<br/>');                           // newlines
                 result.style.display = 'block';
             } else {
                 alert('Could not generate summary. Try again!');
