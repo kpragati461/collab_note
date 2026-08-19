@@ -22,7 +22,7 @@ public class NoteAttachment {
     @Column(nullable = false, length = 255)
     private String originalFilename;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true, length = 800)
     private String storedFilename;
 
     @Column(nullable = false, length = 20)
@@ -31,7 +31,7 @@ public class NoteAttachment {
     @Column(nullable = false, length = 100)
     private String contentType;
 
-    @Column(name = "cloudinary_url", length = 500)
+    @Column(name = "cloudinary_url", length = 900)
     private String cloudinaryUrl;
 
     @CreationTimestamp

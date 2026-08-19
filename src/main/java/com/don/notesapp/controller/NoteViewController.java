@@ -135,26 +135,32 @@ public class NoteViewController {
         return "edit-note";
     }
 
-    // Handle edit
-    @PostMapping("/edit/{id}")
-    public String updateNote(
-            @PathVariable Long id,
-            @Valid @ModelAttribute("note") Note note,
-            BindingResult result,
-            Authentication authentication,
-            @RequestParam(name = "attachments", required = false) List<MultipartFile> attachments) {
+@PostMapping("/edit/{id}")
+public String updateNote(
+        @PathVariable Long id,
+        @Valid @ModelAttribute("note") Note note,
+        BindingResult result,
+        Authentication authentication,
+       @RequestParam(name = "mediaFiles", required = false) List<MultipartFile> attachments) {
 
-        ensureCanEdit(noteService.getNoteById(id), authentication);
+    System.out.println("=== updateNote called, attachments: " + 
+        (attachments == null ? "null" : attachments.size()));
 
-        if (result.hasErrors()) {
-            note.setId(id);
-            return "edit-note";
-        }
+    ensureCanEdit(noteService.getNoteById(id), authentication);
 
-        Note savedNote = noteService.updateNote(id, note);
-        noteAttachmentService.addAttachments(savedNote, attachments);
-        return "redirect:/my-notes";
+    if (result.hasErrors()) {
+        // ← ADD THIS LINE HERE
+        System.out.println("=== validation errors: " + result.getAllErrors());
+        note.setId(id);
+        return "edit-note";
     }
+
+    Note savedNote = noteService.updateNote(id, note);
+    System.out.println("=== note saved, now uploading attachment");
+    noteAttachmentService.addAttachments(savedNote, attachments);
+    System.out.println("=== attachment upload complete");
+    return "redirect:/my-notes";
+}
 
     // Delete note
     @PostMapping("/delete/{id}")

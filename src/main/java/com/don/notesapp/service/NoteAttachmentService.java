@@ -28,14 +28,20 @@ public class NoteAttachmentService {
     }
 
     public void addAttachments(Note note, List<MultipartFile> files) {
-        if (files == null) {
-            return;
-        }
+    // ADD THESE TWO LINES
+    System.out.println("=== addAttachments called, files: " + (files == null ? "null" : files.size()));
+    
+    if (files == null) {
+        return;
+    }
 
-        for (MultipartFile file : files) {
-            if (file.isEmpty()) {
-                continue;
-            }
+    for (MultipartFile file : files) {
+        // ADD THIS LINE
+        System.out.println("=== file: " + file.getOriginalFilename() + " size: " + file.getSize() + " empty: " + file.isEmpty());
+        
+        if (file.isEmpty()) {
+            continue;
+        }
 
             String contentType = file.getContentType();
             String mediaType = resolveMediaType(contentType);
@@ -48,12 +54,12 @@ public class NoteAttachmentService {
                 
                 // Upload to Cloudinary
                 Map uploadResult = cloudinary.uploader().upload(
-                        file.getInputStream(),
-                        ObjectUtils.asMap(
-                                "public_id", publicId,
-                                "resource_type", resourceType,
-                                "original_filename", originalFilename
-                        )
+                file.getBytes(),
+                ObjectUtils.asMap(
+                "public_id", publicId,
+                "resource_type", resourceType,
+                "original_filename", originalFilename
+                )
                 );
 
                 String cloudinaryUrl = (String) uploadResult.get("secure_url");
@@ -69,8 +75,9 @@ public class NoteAttachmentService {
                 note.getAttachments().add(attachment);
                 attachmentRepository.save(attachment);
             } catch (IOException exception) {
-                throw new IllegalStateException("Could not upload attachment to Cloudinary", exception);
-            }
+    System.out.println("=== upload failed: " + exception.getMessage());
+    throw new IllegalStateException("Could not upload attachment to Cloudinary", exception);
+}
         }
     }
 

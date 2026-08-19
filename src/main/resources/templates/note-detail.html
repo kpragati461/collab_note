@@ -49,12 +49,12 @@
                     <h3>Attachments</h3>
                     <div th:each="attachment : ${note.attachments}">
                         <img th:if="${attachment.mediaType == 'IMAGE'}"
-                            th:src="@{/media/{filename}(filename=${attachment.storedFilename})}"
+                                                        th:src="${attachment.cloudinaryUrl}"
                             th:alt="${attachment.originalFilename}"
                             style="display:block; max-width:100%; max-height:520px; border-radius:12px;"/>
                         <video th:if="${attachment.mediaType == 'VIDEO'}" controls
                              style="display:block; width:100%; max-height:520px; border-radius:12px;">
-                           <source th:src="@{/media/{filename}(filename=${attachment.storedFilename})}"
+                                                     <source th:src="${attachment.cloudinaryUrl}"
                                  th:type="${attachment.contentType}"/>
                         </video>
                         <p class="help-text" th:text="${attachment.originalFilename}"></p>
