@@ -126,9 +126,61 @@ public class GeminiController {
         }
     }
 
+    @PostMapping("/summarize")
+    public String summarize(@RequestBody SummarizeRequest request) {
+        try {
+            String prompt = "Summarize the following note in clear, concise and brief bullet points(Number of bullet point are estimated according to the size of the note and enough to cover the summary)."
+                    +"Make it personalized and easy to understand for not only the owner but also for collaborators (editors and viewers)."
+                    + "Return ONLY the summary, no preamble, no explanation:\n\n"
+                    + request.content();
+
+            String requestBody = objectMapper.writeValueAsString(Map.of(
+                    "contents", new Object[]{Map.of(
+                            "parts", new Object[]{Map.of("text", prompt)}
+                    )}
+            ));
+
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl + (apiUrl.contains("?") ? "&" : "?")
+                            + "key=" + URLEncoder.encode(apiKey, StandardCharsets.UTF_8)))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(
+                    httpRequest,
+                    HttpResponse.BodyHandlers.ofString()
+            );
+
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                System.out.println("=== Gemini summary error: " + response.statusCode() + " " + response.body());
+                return "";
+            }
+
+            JsonNode text = objectMapper.readTree(response.body())
+                    .path("candidates")
+                    .path(0)
+                    .path("content")
+                    .path("parts")
+                    .path(0)
+                    .path("text");
+
+            return text.isTextual() && !text.asText().isBlank()
+                    ? text.asText().trim()
+                    : "";
+
+        } catch (Exception exception) {
+            System.out.println("=== Gemini summary exception: " + exception.getMessage());
+            return "";
+        }
+    }
+
     public record GenerateTitleRequest(String content) {
     }
 
     public record GenerateTagsRequest(String content) {
+    }
+
+    public record SummarizeRequest(String content) {
     }
 }
