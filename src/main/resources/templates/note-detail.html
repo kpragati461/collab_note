@@ -45,21 +45,39 @@
                 </div>
 
                  <div th:if="${!note.attachments.isEmpty()}"
-                     style="display:grid; gap:16px; margin-top:24px;">
-                    <h3>Attachments</h3>
-                    <div th:each="attachment : ${note.attachments}">
-                        <img th:if="${attachment.mediaType == 'IMAGE'}"
-                                                        th:src="${attachment.cloudinaryUrl}"
-                            th:alt="${attachment.originalFilename}"
-                            style="display:block; max-width:100%; max-height:520px; border-radius:12px;"/>
-                        <video th:if="${attachment.mediaType == 'VIDEO'}" controls
-                             style="display:block; width:100%; max-height:520px; border-radius:12px;">
-                                                     <source th:src="${attachment.cloudinaryUrl}"
-                                 th:type="${attachment.contentType}"/>
-                        </video>
-                        <p class="help-text" th:text="${attachment.originalFilename}"></p>
-                    </div>
-                 </div>
+     style="display:grid; gap:16px; margin-top:24px;">
+    <h3>Attachments</h3>
+    <div th:each="attachment : ${note.attachments}"
+         style="position:relative;">
+
+        <img th:if="${attachment.mediaType == 'IMAGE'}"
+             th:src="${attachment.cloudinaryUrl}"
+             th:alt="${attachment.originalFilename}"
+             style="display:block; max-width:100%; max-height:520px; border-radius:12px;"/>
+
+        <video th:if="${attachment.mediaType == 'VIDEO'}" controls
+               style="display:block; width:100%; max-height:520px; border-radius:12px;">
+            <source th:src="${attachment.cloudinaryUrl}"
+                    th:type="${attachment.contentType}"/>
+        </video>
+
+        <p class="help-text" th:text="${attachment.originalFilename}"></p>
+
+        <!-- Delete attachment button — only for editors/owners -->
+        <form th:if="${canEdit}"
+              th:action="@{/my-notes/{noteId}/attachments/{attachmentId}/delete(noteId=${note.id}, attachmentId=${attachment.id})}"
+              method="post"
+              style="margin-top:6px; display:inline;">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit"
+                    class="button button-danger"
+                    style="font-size:12px; padding:4px 12px;"
+                    onclick="return confirm('Remove this attachment?')">
+                🗑 Remove
+            </button>
+        </form>
+    </div>
+</div>
 
                 <div class="form-actions" style="justify-content:flex-start; margin-top: 24px;">
                     <a th:if="${canEdit}" class="button"

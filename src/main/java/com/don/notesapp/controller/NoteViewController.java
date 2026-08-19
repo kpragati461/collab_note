@@ -296,6 +296,28 @@ public String updateNote(
 
         return "redirect:/my-notes/" + id;
     }
+    // Delete attachment
+@PostMapping("/{noteId}/attachments/{attachmentId}/delete")
+public String deleteAttachment(
+        @PathVariable Long noteId,
+        @PathVariable Long attachmentId,
+        Authentication authentication,
+        RedirectAttributes redirectAttributes) {
+
+    Note note = noteService.getNoteById(noteId);
+    User currentUser = getCurrentUser(authentication);
+
+    if (!collaborationService.canEdit(note, currentUser)) {
+        redirectAttributes.addFlashAttribute("error",
+                "You don't have permission to delete attachments.");
+        return "redirect:/my-notes/" + noteId;
+    }
+
+    noteAttachmentService.deleteAttachment(noteId, attachmentId);
+    redirectAttributes.addFlashAttribute("shareSuccess", "Attachment removed.");
+
+    return "redirect:/my-notes/" + noteId;
+}
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 

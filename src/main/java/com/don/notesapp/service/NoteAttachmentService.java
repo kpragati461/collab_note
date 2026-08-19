@@ -7,6 +7,7 @@ import com.don.notesapp.entity.NoteAttachment;
 import com.don.notesapp.repository.NoteAttachmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.List;
@@ -109,4 +110,21 @@ public class NoteAttachmentService {
         String safeFilename = filename == null ? "attachment" : filename.replaceAll("[^a-zA-Z0-9._-]", "_");
         return safeFilename.isBlank() ? "attachment" : safeFilename;
     }
+    @Transactional
+    public void deleteAttachment(Long noteId, Long attachmentId) {
+    NoteAttachment attachment = attachmentRepository.findById(attachmentId)
+            .orElseThrow(() -> new IllegalArgumentException("Attachment not found"));
+
+    try {
+        String resourceType = attachment.getMediaType().equals("IMAGE") ? "image" : "video";
+        cloudinary.uploader().destroy(
+                attachment.getStoredFilename(),
+                ObjectUtils.asMap("resource_type", resourceType)
+        );
+    } catch (IOException e) {
+        throw new IllegalStateException("Could not delete from Cloudinary", e);
+    }
+
+    attachmentRepository.delete(attachment);
+}
 }
