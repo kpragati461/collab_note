@@ -56,6 +56,16 @@
                     <input id="title" type="text" th:field="*{title}"/>
                     <span th:if="${#fields.hasErrors('title')}"
                           th:errors="*{title}" class="error-text"></span>
+                    <button type="button" id="generate-title-btn"
+                            style="margin-top:8px; font-size:13px;"
+                            class="button button-secondary">
+                        ✨ Generate Title
+                    </button>
+                    <span id="title-loading"
+                          style="display:none; font-size:12px;
+                                 color:var(--text-secondary); margin-left:8px;">
+                        Generating...
+                    </span>
                 </div>
 
                 <div class="field">
@@ -69,6 +79,16 @@
                     <label for="tagsInput">Tags</label>
                     <input id="tagsInput" type="text" th:field="*{tagsInput}"/>
                     <p class="help-text">Separate tags with commas.</p>
+                    <button type="button" id="generate-tags-btn"
+                            style="margin-top:8px; font-size:13px;"
+                            class="button button-secondary">
+                        ✨ Generate Tags
+                    </button>
+                    <span id="tags-loading"
+                          style="display:none; font-size:12px;
+                                 color:var(--text-secondary); margin-left:8px;">
+                        Generating...
+                    </span>
                 </div>
 
                 <div class="field">
@@ -228,6 +248,96 @@
 
     // Start connection
     connect();
+</script>
+
+<script>
+    // AI Title Generator
+    document.getElementById('generate-title-btn')
+        .addEventListener('click', async function () {
+
+        const content = document.getElementById('content').value;
+
+        if (!content || content.trim().length < 10) {
+            alert('Please write some content first!');
+            return;
+        }
+
+        const btn = document.getElementById('generate-title-btn');
+        const loading = document.getElementById('title-loading');
+        const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+        btn.disabled = true;
+        loading.style.display = 'inline';
+
+        try {
+            const response = await fetch('/api/ai/generate-title', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ content: content })
+            });
+
+            const title = await response.text();
+
+            if (title && title !== 'Untitled Note') {
+                document.getElementById('title').value = title;
+            } else {
+                alert('Could not generate title. Try again!');
+            }
+        } catch (error) {
+            alert('Something went wrong. Try again!');
+        } finally {
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    });
+</script>
+
+<script>
+    // AI Tag Generator
+    document.getElementById('generate-tags-btn')
+        .addEventListener('click', async function () {
+
+        const content = document.getElementById('content').value;
+
+        if (!content || content.trim().length < 10) {
+            alert('Please write some content first!');
+            return;
+        }
+
+        const btn = document.getElementById('generate-tags-btn');
+        const loading = document.getElementById('tags-loading');
+        const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+        btn.disabled = true;
+        loading.style.display = 'inline';
+
+        try {
+            const response = await fetch('/api/ai/generate-tags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ content: content })
+            });
+
+            const tags = await response.text();
+
+            if (tags && tags.trim().length > 0) {
+                document.getElementById('tagsInput').value = tags.trim();
+            } else {
+                alert('Could not generate tags. Try again!');
+            }
+        } catch (error) {
+            alert('Something went wrong. Try again!');
+        } finally {
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    });
 </script>
 
 </body>
