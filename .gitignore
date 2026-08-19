@@ -32,3 +32,14 @@ build/
 ### VS Code ###
 .vscode/
 *.log
+
+### JVM Crash Logs ###
+hs_err_pid*.log
+hs_err_pid*.mdmp
+replay_pid*.log
+
+### Secrets — never commit these ###
+src/main/resources/application.properties
+src/main/resources/application-*.properties
+application.properties
+application-*.properties
