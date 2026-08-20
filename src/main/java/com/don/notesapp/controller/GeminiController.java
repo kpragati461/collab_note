@@ -191,6 +191,58 @@ public class GeminiController {
         }
     }
 
+    @PostMapping("/generate-quiz")
+    public String generateQuiz(@RequestBody GenerateQuizRequest request) {
+        try {
+                        String prompt = "Generate a quiz with appropriate number of multiple choice questions(so that it covers most of the content) based on the \n"
+                                        + "following note content. Return the response as a valid JSON array \n"
+                                        + "only, no markdown, no explanation, no code blocks.\n"
+                                        + "Each object must have exactly:\n"
+                                        + "- question: the question text\n"
+                                        + "- options: array of exactly 4 strings\n"
+                                        + "- answer: correct answer string matching one of the options\n\n"
+                    + "Note content:\n\n" + request.content();
+
+            String requestBody = objectMapper.writeValueAsString(Map.of(
+                    "contents", new Object[]{Map.of(
+                            "parts", new Object[]{Map.of("text", prompt)}
+                    )}
+            ));
+
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl + (apiUrl.contains("?") ? "&" : "?")
+                            + "key=" + URLEncoder.encode(apiKey, StandardCharsets.UTF_8)))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(
+                    httpRequest,
+                    HttpResponse.BodyHandlers.ofString()
+            );
+
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                System.out.println("=== Gemini quiz error: " + response.statusCode() + " " + response.body());
+                return "[]";
+            }
+
+            JsonNode text = objectMapper.readTree(response.body())
+                    .path("candidates")
+                    .path(0)
+                    .path("content")
+                    .path("parts")
+                    .path(0)
+                    .path("text");
+
+            return text.isTextual() && !text.asText().isBlank()
+                    ? text.asText().trim().replaceAll("^```(?:json)?\\s*|\\s*```$", "")
+                    : "[]";
+        } catch (Exception exception) {
+            System.out.println("=== Gemini quiz exception: " + exception.getMessage());
+            return "[]";
+        }
+    }
+
     @PostMapping("/summarize")
     public String summarize(@RequestBody SummarizeRequest request) {
         try {
@@ -245,6 +297,9 @@ public class GeminiController {
 
     public record GenerateTagsRequest(String content) {
     }
+
+        public record GenerateQuizRequest(String content) {
+        }
 
     public record SummarizeRequest(String content) {
     }

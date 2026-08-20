@@ -62,6 +62,20 @@
                     </div>
                 </div>
 
+                        <!-- AI Quiz Generator -->
+                        <div style="margin-top: 16px;">
+                            <button type="button" id="quiz-btn" class="button button-secondary"
+                                    style="font-size:13px;">
+                                🧠 Generate Quiz
+                            </button>
+                            <span id="quiz-loading"
+                                  style="display:none; font-size:12px;
+                                         color:var(--text-secondary); margin-left:8px;">
+                                Generating quiz...
+                            </span>
+                            <div id="quiz-container" style="display:none; margin-top:20px;"></div>
+                        </div>
+
                  <div th:if="${!note.attachments.isEmpty()}"
      style="display:grid; gap:16px; margin-top:24px;">
     <h3>Attachments</h3>
@@ -256,6 +270,119 @@
             loading.style.display = 'none';
         }
     });
+
+    // AI Quiz Generator
+    document.getElementById('quiz-btn')
+            .addEventListener('click', async function () {
+
+        if (!noteContent || noteContent.trim().length < 50) {
+            alert('Note is too short to generate a quiz!');
+            return;
+        }
+
+        const btn = document.getElementById('quiz-btn');
+        const loading = document.getElementById('quiz-loading');
+        const container = document.getElementById('quiz-container');
+
+        btn.disabled = true;
+        loading.style.display = 'inline';
+        container.style.display = 'none';
+        container.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/ai/generate-quiz', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ content: noteContent })
+            });
+
+            const raw = await response.text();
+            const questions = JSON.parse(raw);
+
+            if (!questions || questions.length === 0) {
+                alert('Could not generate quiz. Try again!');
+                return;
+            }
+
+            const escapeHtml = value => String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            let html = '<div style="display:flex; flex-direction:column; gap:20px;">';
+
+            questions.forEach((question, index) => {
+                const qId = 'q' + index;
+                const escapedQuestion = escapeHtml(question.question);
+                const escapedAnswer = escapeHtml(question.answer);
+                html += `
+                    <div style="background:var(--surface); border-radius:12px;
+                                padding:16px; border-left:4px solid var(--accent);">
+                        <p style="font-weight:600; margin-bottom:12px;">
+                            ${index + 1}. ${escapedQuestion}
+                        </p>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${question.options.map((option, optionIndex) => `
+                                <label style="display:flex; align-items:center; gap:8px;
+                                              cursor:pointer; font-size:14px;">
+                                    <input type="radio" name="${qId}" value="${escapeHtml(option)}"
+                                           style="cursor:pointer;"/>
+                                    ${escapeHtml(option)}
+                                </label>
+                            `).join('')}
+                        </div>
+                        <button type="button" data-q-id="${qId}" data-answer="${escapedAnswer}"
+                                style="margin-top:12px; font-size:12px;"
+                                class="button button-secondary">
+                            Check Answer
+                        </button>
+                        <p id="${qId}-result"
+                           style="margin-top:8px; font-size:13px; font-weight:600;"></p>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            container.querySelectorAll('[data-q-id]').forEach(checkButton => {
+                checkButton.addEventListener('click', function () {
+                    checkAnswer(this.dataset.qId, this.dataset.answer, this);
+                });
+            });
+            container.style.display = 'block';
+
+        } catch (error) {
+            alert('Something went wrong. Try again!');
+        } finally {
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    });
+
+    function checkAnswer(qId, correctAnswer, btn) {
+        const selected = document.querySelector(`input[name="${qId}"]:checked`);
+        const result = document.getElementById(qId + '-result');
+
+        if (!selected) {
+            result.textContent = 'Please select an answer!';
+            result.style.color = 'var(--text-secondary)';
+            return;
+        }
+
+        if (selected.value === correctAnswer) {
+            result.textContent = '✅ Correct!';
+            result.style.color = '#22c55e';
+        } else {
+            result.textContent = '❌ Wrong! Answer: ' + correctAnswer;
+            result.style.color = 'var(--danger)';
+        }
+
+        btn.disabled = true;
+    }
 </script>
 </body>
 </html>
