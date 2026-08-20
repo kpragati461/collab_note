@@ -103,33 +103,26 @@ public List<Note> getAllNotes() {
  */
 @Transactional(readOnly = true)
 public List<Note> searchNotes(String keyword) {
-
     User currentUser = getCurrentUser();
 
-    List<Note> ownedNotes = noteRepository.findByOwnerAndTitleContainingIgnoreCase(
-            currentUser,
-            keyword,
-            Sort.by(Sort.Direction.DESC, "createdAt")
-    );
+    // Search by title
+    List<Note> byTitle = noteRepository.findByOwnerAndTitleContainingIgnoreCase(
+            currentUser, keyword, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-    List<Note> collaboratedNotes = noteRepository
-            .findByCollaboratorsUserAndTitleContainingIgnoreCase(
-                    currentUser,
-                    keyword,
-                    Sort.by(Sort.Direction.DESC, "createdAt")
-            );
+    // Search by tag name
+    List<Note> byTag = noteRepository.findByOwnerAndTagsNameIgnoreCase(
+            currentUser, keyword, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-    List<Note> allNotes = new ArrayList<>(ownedNotes);
-
-    collaboratedNotes.forEach(note -> {
-        if (allNotes.stream().noneMatch(n -> n.getId().equals(note.getId()))) {
-            allNotes.add(note);
+    // Merge without duplicates
+    List<Note> merged = new ArrayList<>(byTitle);
+    byTag.forEach(note -> {
+        if (merged.stream().noneMatch(n -> n.getId().equals(note.getId()))) {
+            merged.add(note);
         }
     });
 
-    allNotes.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
-
-    return allNotes;
+    merged.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+    return merged;
 }
     /*
      * GET ONE NOTE

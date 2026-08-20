@@ -14,13 +14,12 @@
 <div class="app-shell">
     <main class="main-content">
         <header class="page-top">
-            <div><p class="eyebrow">Your private space</p><h1 id="greeting-line1">Welcome!</h1><p class="page-subtitle" id="greeting-line2">Capture your thoughts, organize your mind.</p></div>
+            <div><p class="eyebrow">Your private space</p><h1>Welcome!</h1><p class="page-subtitle">Capture your thoughts, organize your mind.</p></div>
             <div style="display:flex; gap:14px; align-items:center;">
               <div class="theme-toggle" aria-label="Choose color theme">
               <button type="button" data-theme-choice="light" onclick="setTheme('light')" aria-label="Light mode">☼</button>
               <button type="button" data-theme-choice="dark" onclick="setTheme('dark')" aria-label="Dark mode">☾</button>
               </div>
-              <a class="button" href="/my-notes/create">＋ New note</a>
               <form action="/logout" method="post" style="margin:0;">
               <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
               <button type="submit" class="button button-secondary">Logout</button>
@@ -33,11 +32,24 @@
             <button class="button" type="submit">Search</button>
             <a class="button button-secondary" href="/my-notes">Clear</a>
         </form>
-        <div class="tag-filters"><a class="tag-filter active" href="/my-notes">All notes</a><span class="tag-filter">⌑ work</span><span class="tag-filter">⌑ ideas</span><span class="tag-filter">⌑ reading</span></div>
+        <div th:if="${!allTags.isEmpty()}" class="tag-filters">
+            <a class="tag-filter" th:classappend="${keyword == null or keyword.isEmpty()} ? ' active' : ''"
+               href="/my-notes">All notes</a>
+            <a th:each="tag : ${allTags}" class="tag-filter"
+               th:classappend="${keyword != null and keyword.equals(tag)} ? ' active' : ''"
+               th:href="@{/my-notes(keyword=${tag})}"
+               th:text="${'⌑ ' + tag}"></a>
+        </div>
 
         <p th:if="${keyword != null and !keyword.isEmpty()}" class="page-subtitle" style="margin-bottom:18px;" th:text="${'Results for “' + keyword + '”'}"></p>
-        <section th:if="${notes.isEmpty()}" class="empty-state"><p>You have no notes yet.</p><a class="button" href="/my-notes/create">Write your first note</a></section>
-        <section th:if="${!notes.isEmpty()}" class="note-grid">
+        <section th:if="${notes.isEmpty()}" class="empty-state"><p>You have no notes yet.</p></section>
+        <section class="note-grid">
+            <article class="note-card new-note-card">
+                <a class="note-card-link new-note-card-link" href="/my-notes/create">
+                    <span class="new-note-icon" aria-hidden="true">+</span>
+                    <h2 class="new-note-text">New note</h2>
+                </a>
+            </article>
             <article th:each="note : ${notes}" class="note-card">
                 <a class="note-card-link" th:href="@{/my-notes/{id}(id=${note.id})}">
                     <h2 class="note-title" th:text="${note.title}"></h2>
@@ -52,20 +64,5 @@
         </section>
     </main>
 </div>
-<script>
-    // AI Greeting
-    fetch('/api/ai/greeting')
-        .then(response => response.text())
-        .then(greeting => {
-            const lines = greeting.split('\n');
-            if (lines.length >= 2) {
-                document.getElementById('greeting-line1').textContent = lines[0].trim();
-                document.getElementById('greeting-line2').textContent = lines[1].trim();
-            }
-        })
-        .catch(() => {
-            // Keep default text on error
-        });
-</script>
 </body>
 </html>

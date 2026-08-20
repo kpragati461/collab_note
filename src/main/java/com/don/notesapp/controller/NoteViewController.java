@@ -16,8 +16,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/my-notes")
@@ -46,36 +47,27 @@ public class NoteViewController {
             @RequestParam(required = false) String keyword,
             Model model) {
 
+        List<Note> allNotes = noteService.getAllNotes();
+        List<String> allTags = allNotes.stream()
+                .flatMap(note -> note.getTags().stream())
+                .map(tag -> tag.getName())
+                .filter(name -> name != null && !name.isBlank())
+                .distinct()
+                .sorted(Comparator.naturalOrder())
+                .collect(Collectors.toList());
+
         List<Note> notes;
 
         if (keyword != null && !keyword.trim().isEmpty()) {
             notes = noteService.searchNotes(keyword);
             model.addAttribute("keyword", keyword);
         } else {
-            notes = noteService.getAllNotes();
+            notes = allNotes;
         }
 
         model.addAttribute("notes", notes);
-        model.addAttribute("greeting", getGreeting());
+        model.addAttribute("allTags", allTags);
         return "notes";
-    }
-
-    private String getGreeting() {
-        int hour = LocalTime.now().getHour();
-
-        if (hour < 5) {
-            return "Good night!";
-        }
-        if (hour < 12) {
-            return "Good morning!";
-        }
-        if (hour < 18) {
-            return "Good afternoon!";
-        }
-        if (hour < 22) {
-            return "Good evening!";
-        }
-        return "Good night!";
     }
 
     // Show create note form

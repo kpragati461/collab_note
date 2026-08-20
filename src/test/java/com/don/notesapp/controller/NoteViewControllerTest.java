@@ -26,7 +26,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
-import static org.hamcrest.Matchers.isIn;
 
 @WebMvcTest(NoteViewController.class)
 @AutoConfigureMockMvc
@@ -48,18 +47,12 @@ class NoteViewControllerTest {
     private CollaborationService collaborationService;
 
     @Test
-    void showNotesPageIncludesTimeBasedGreeting() throws Exception {
+    void showNotesPage() throws Exception {
         when(noteService.getAllNotes()).thenReturn(List.of());
 
         mockMvc.perform(get("/my-notes").with(user("alice")))
                 .andExpect(status().isOk())
-                .andExpect(view().name("notes"))
-                .andExpect(model().attribute("greeting", isIn(List.of(
-                        "Good morning!",
-                        "Good afternoon!",
-                        "Good evening!",
-                        "Good night!"
-                ))));
+                .andExpect(view().name("notes"));
     }
 
     @Test

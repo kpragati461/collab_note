@@ -11,7 +11,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalTime;
 import java.util.Map;
 
 @RestController
@@ -31,70 +30,6 @@ public class GeminiController {
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newHttpClient();
     }
-
-    @GetMapping("/greeting")
-    public String greeting() {
-        String fallback = "Welcome!\nCapture your thoughts, organize your mind.";
-
-        try {
-            int hour = LocalTime.now().getHour();
-            String timeOfDay;
-
-            if (hour < 5 || hour >= 22) {
-                timeOfDay = "night";
-            } else if (hour < 12) {
-                timeOfDay = "morning";
-            } else if (hour < 18) {
-                timeOfDay = "afternoon";
-            } else {
-                timeOfDay = "evening";
-            }
-
-            String prompt = "Generate a short, warm, inspiring 2-line greeting for a notes app dashboard.\n"
-                    + "It is currently " + timeOfDay + ".\n"
-                    + "Line 1: A warm greeting (max 4 words, can be creative, not just 'Good morning').\n"
-                    + "Line 2: A short motivational subtitle (max 8 words, about capturing thoughts or creativity).\n"
-                    + "Return ONLY the two lines separated by a newline, no quotes, no explanation.";
-
-            String requestBody = objectMapper.writeValueAsString(Map.of(
-                    "contents", new Object[]{Map.of(
-                            "parts", new Object[]{Map.of("text", prompt)}
-                    )}
-            ));
-
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl + (apiUrl.contains("?") ? "&" : "?")
-                            + "key=" + URLEncoder.encode(apiKey, StandardCharsets.UTF_8)))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(
-                    httpRequest,
-                    HttpResponse.BodyHandlers.ofString()
-            );
-
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                System.out.println("=== Gemini greeting error: " + response.statusCode() + " " + response.body());
-                return fallback;
-            }
-
-            JsonNode text = objectMapper.readTree(response.body())
-                    .path("candidates")
-                    .path(0)
-                    .path("content")
-                    .path("parts")
-                    .path(0)
-                    .path("text");
-
-            return text.isTextual() && !text.asText().isBlank()
-                    ? text.asText().trim()
-                    : fallback;
-        } catch (Exception exception) {
-            System.out.println("=== Gemini greeting exception: " + exception.getMessage());
-            return fallback;
-        }
-        }
 
     @PostMapping("/generate-title")
     public String generateTitle(@RequestBody GenerateTitleRequest request) {
