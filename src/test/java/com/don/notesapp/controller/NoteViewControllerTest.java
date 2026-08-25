@@ -55,6 +55,22 @@ class NoteViewControllerTest {
                 .andExpect(view().name("notes"));
     }
 
+        @Test
+        void showChatPageWithCombinedNoteContent() throws Exception {
+                Note note = new Note();
+                note.setTitle("Project ideas");
+                note.setContent("Build a shared notes feature");
+                when(noteService.getAllNotes()).thenReturn(List.of(note));
+
+                mockMvc.perform(get("/my-notes/chat").with(user("alice")))
+                                .andExpect(status().isOk())
+                                .andExpect(view().name("chat"))
+                                .andExpect(model().attribute("noteCount", 1))
+                                .andExpect(model().attribute(
+                                                "allNotesContent",
+                                                "Title: Project ideas\nBuild a shared notes feature"));
+        }
+
     @Test
     void showNoteDetailPage() throws Exception {
 

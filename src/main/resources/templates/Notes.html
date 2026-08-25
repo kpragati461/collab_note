@@ -20,6 +20,7 @@
               <button type="button" data-theme-choice="light" onclick="setTheme('light')" aria-label="Light mode">☼</button>
               <button type="button" data-theme-choice="dark" onclick="setTheme('dark')" aria-label="Dark mode">☾</button>
               </div>
+              <a class="button button-secondary" href="/my-notes/chat">💬 Chat</a>
               <form action="/logout" method="post" style="margin:0;">
               <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
               <button type="submit" class="button button-secondary">Logout</button>

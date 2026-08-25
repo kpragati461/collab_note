@@ -70,6 +70,19 @@ public class NoteViewController {
         return "notes";
     }
 
+    @GetMapping("/chat")
+    public String showChat(Model model, Authentication authentication) {
+        List<Note> notes = noteService.getAllNotes();
+
+        String allNotesContent = notes.stream()
+                .map(note -> "Title: " + note.getTitle() + "\n" + note.getContent())
+                .collect(Collectors.joining("\n\n---\n\n"));
+
+        model.addAttribute("allNotesContent", allNotesContent);
+        model.addAttribute("noteCount", notes.size());
+        return "chat";
+    }
+
     // Show create note form
     @GetMapping("/create")
     public String showCreateForm(Model model) {

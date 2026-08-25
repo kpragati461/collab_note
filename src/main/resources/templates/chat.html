@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Chat with Notes · CollabNote</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/css/collabnote.css"/>
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+<div class="app-shell">
+    <main class="main-content">
+        <header class="page-top">
+            <div>
+                <p class="eyebrow">AI Assistant</p>
+                <h1>Chat with your notes</h1>
+                <p class="page-subtitle" th:text="'Asking across ' + ${noteCount} + ' notes'"></p>
+            </div>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <div class="theme-toggle" aria-label="Choose color theme">
+                    <button type="button" data-theme-choice="light" onclick="setTheme('light')" aria-label="Light mode">☼</button>
+                    <button type="button" data-theme-choice="dark" onclick="setTheme('dark')" aria-label="Dark mode">☾</button>
+                </div>
+                <a class="button button-secondary" href="/my-notes">← Back</a>
+            </div>
+        </header>
+
+        <section class="form-wrap">
+            <div class="form-card" style="padding:0; overflow:hidden;">
+                <div id="chat-messages" class="chat-messages">
+                    <div class="chat-bubble assistant">
+                        <p style="margin:0;">👋 Hi! Ask me anything about your notes. I’ll search through all of them to find the answer.</p>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <textarea id="chat-input"
+                              placeholder="Ask anything about your notes..."
+                              rows="2"
+                              aria-label="Question about your notes"></textarea>
+                    <button id="chat-send" class="button" type="button">Send ↑</button>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<style>
+.chat-messages {
+    min-height: 400px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.chat-input-area {
+    border-top: 1px solid var(--border);
+    padding: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+.chat-input-area textarea {
+    flex: 1;
+    min-height: 48px;
+    max-height: 120px;
+    resize: none;
+    border-radius: 12px;
+}
+.chat-bubble {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+.chat-bubble.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+:root[data-theme="dark"] .chat-bubble.user {
+    color: #171717;
+}
+.chat-bubble.assistant,
+.chat-bubble.thinking {
+    align-self: flex-start;
+    background: var(--surface-muted);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+}
+.chat-bubble.thinking {
+    color: var(--muted);
+    font-style: italic;
+}
+@media (max-width: 640px) {
+    .page-top { flex-direction: column; }
+    .chat-bubble { max-width: 92%; }
+    .chat-input-area { align-items: stretch; flex-direction: column; }
+    .chat-input-area .button { width: 100%; }
+}
+</style>
+
+<script th:inline="javascript">
+    const allNotesContent = /*[[${allNotesContent}]]*/ '';
+    const csrfToken = /*[[${_csrf.token}]]*/ '';
+
+    const messages = document.getElementById('chat-messages');
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send');
+
+function addBubble(text, type) {
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble ' + type;
+    bubble.innerHTML = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^\* /gm, '• ')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br/>');
+    messages.appendChild(bubble);
+    messages.scrollTop = messages.scrollHeight;
+    return bubble;
+}
+
+    async function sendMessage() {
+        const question = input.value.trim();
+        if (!question) return;
+
+        if (!allNotesContent || allNotesContent.trim().length === 0) {
+            addBubble('You have no notes yet! Create some notes first and then come back to chat.', 'assistant');
+            return;
+        }
+
+        addBubble(question, 'user');
+        input.value = '';
+        sendBtn.disabled = true;
+        const thinking = addBubble('Thinking...', 'thinking');
+
+        try {
+            const response = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    question: question,
+                    notes: allNotesContent
+                })
+            });
+
+            const answer = await response.text();
+            thinking.remove();
+            addBubble(response.ok ? answer : 'Something went wrong. Please try again!', 'assistant');
+        } catch (error) {
+            thinking.remove();
+            addBubble('Something went wrong. Please try again!', 'assistant');
+        } finally {
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+</script>
+</body>
+</html>

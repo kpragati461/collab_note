@@ -178,6 +178,55 @@ public class GeminiController {
         }
     }
 
+    @PostMapping("/chat")
+    public String chat(@RequestBody ChatRequest request) {
+        try {
+            String prompt = "You are a helpful assistant for a personal notes app called CollabNote.\n"
+                    + "The user has the following notes:\n\n" + request.notes() + "\n\n"
+                    + "Based ONLY on the notes above, answer this question as helpfully as possible.\n"
+                    + "If the answer is not in the notes, say 'I could not find anything about that in your notes.'\n"
+                    + "Question: " + request.question();
+
+            String requestBody = objectMapper.writeValueAsString(Map.of(
+                    "contents", new Object[]{Map.of(
+                            "parts", new Object[]{Map.of("text", prompt)}
+                    )}
+            ));
+
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl + (apiUrl.contains("?") ? "&" : "?")
+                            + "key=" + URLEncoder.encode(apiKey, StandardCharsets.UTF_8)))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(
+                    httpRequest,
+                    HttpResponse.BodyHandlers.ofString()
+            );
+
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                System.out.println("=== Gemini chat error: " + response.statusCode() + " " + response.body());
+                return "I could not find anything about that in your notes.";
+            }
+
+            JsonNode text = objectMapper.readTree(response.body())
+                    .path("candidates")
+                    .path(0)
+                    .path("content")
+                    .path("parts")
+                    .path(0)
+                    .path("text");
+
+            return text.isTextual() && !text.asText().isBlank()
+                    ? text.asText().trim()
+                    : "I could not find anything about that in your notes.";
+        } catch (Exception exception) {
+            System.out.println("=== Gemini chat exception: " + exception.getMessage());
+            return "I could not find anything about that in your notes.";
+        }
+    }
+
     @PostMapping("/summarize")
     public String summarize(@RequestBody SummarizeRequest request) {
         try {
@@ -234,6 +283,9 @@ public class GeminiController {
     }
 
         public record GenerateQuizRequest(String content) {
+        }
+
+        public record ChatRequest(String question, String notes) {
         }
 
     public record SummarizeRequest(String content) {
